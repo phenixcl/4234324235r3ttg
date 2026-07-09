@@ -19,27 +19,24 @@ jobs:
         with:
           arch: x86
 
-      - name: Prepare dependencies (WTL & JSON)
+      - name: Prepare dependencies
         run: |
-          # Качаем WTL и раскидываем хедеры прямо в папки проектов фубара
-          curl -L -o wtl.zip https://sourceforge.net/projects/wtl/files/WTL%2010/WTL%2010.0.10320/WTL10_10320.zip/download
-          7z x wtl.zip -oC:\wtl
-          Copy-Item C:\wtl\Include\* C:\foobar2000-sdk\foobar2000\helpers\ -Force
-          Copy-Item C:\wtl\Include\* C:\foobar2000-sdk\libPPUI\ -Force
-          Copy-Item C:\wtl\Include\* C:\foobar2000-sdk\foobar2000\foo_sample\ -Force
+          # Ставим WTL через встроенный менеджер (скачается моментально)
+          vcpkg install wtl:x86-windows
+          vcpkg integrate install
 
-          # Качаем json.hpp напрямую, без долгого vcpkg
+          # Качаем json.hpp напрямую
           New-Item -Path C:\foobar2000-sdk\foobar2000\foo_sample\nlohmann -ItemType Directory -Force
           curl -L -o C:\foobar2000-sdk\foobar2000\foo_sample\nlohmann\json.hpp https://github.com/nlohmann/json/releases/download/v3.11.3/json.hpp
 
       - name: Hijack foo_sample and build
         run: |
-          # Инжектим stdafx.h для поддержки Precompiled Headers студии
+          # Инжектим stdafx.h для поддержки PCH студии
           $main_code = Get-Content main.cpp -Raw
           "#include `"stdafx.h`"`r`n" + $main_code | Set-Content C:\foobar2000-sdk\foobar2000\foo_sample\main.cpp
           Copy-Item yandex_api.hpp C:\foobar2000-sdk\foobar2000\foo_sample\yandex_api.hpp -Force
           
-          # Собираем с форсированием свежего тулсета
+          # Собираем
           cd C:\foobar2000-sdk\foobar2000\foo_sample
           msbuild foo_sample.vcxproj /p:Configuration=Release /p:Platform=Win32 /p:TargetName=foo_yandex_music /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0
 
