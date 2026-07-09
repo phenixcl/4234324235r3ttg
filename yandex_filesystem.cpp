@@ -99,7 +99,7 @@ public:
 
         if (host.empty() || path.empty() || ts.empty() || s.empty()) throw exception_io_not_found();
 
-        std::string sign_salt = "XGRlBW9FXlekgbPrRHuAle";
+        std::string sign_salt = "XGRlBW9FXlekgbPrRHuSiA";
         std::string to_hash = sign_salt + path.substr(1) + s;
 
         static_api_ptr_t<hasher_md5> hasher;
