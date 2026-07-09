@@ -229,6 +229,10 @@ public:
         throw exception_tagging_unsupported();
     }
 
+    void remove_tags(abort_callback & p_abort) {
+        throw exception_tagging_unsupported();
+    }
+
     static bool g_is_our_content_type(const char * p_content_type) { return false; }
     static bool g_is_our_path(const char * p_path, const char * p_extension) {
         return strncmp(p_path, "yandex://", 9) == 0;
