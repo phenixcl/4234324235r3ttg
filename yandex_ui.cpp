@@ -2,10 +2,13 @@
 #include "resource.h"
 #include <helpers/atl-misc.h>
 #include <helpers/foobar2000+atl.h>
+#include <helpers/BumpableElem.h>
 #include "yandex_api.hpp"
 #include <vector>
 #include <string>
 #include <thread>
+#include <sstream>
+#include <iomanip>
 
 // Configuration string for Yandex Token
 static const GUID guid_cfg_yandex_token = { 0x5a1b32f1, 0xc8a4, 0x4f12, { 0x9e, 0x21, 0x1d, 0x5c, 0xa1, 0x4f, 0x12, 0x3d } };
@@ -56,13 +59,13 @@ public:
     
     uint32_t get_state() override {
         uint32_t state = preferences_state::resettable;
-        pfc::string8 current_token = pfc::stringcvt::string_utf8_from_os(uGetDlgItemText(m_hWnd, IDC_YANDEX_TOKEN));
+        pfc::string8 current_token = uGetDlgItemText(m_hWnd, IDC_YANDEX_TOKEN);
         if (current_token != cfg_yandex_token.get_ptr()) state |= preferences_state::changed;
         return state;
     }
     
     void apply() override {
-        cfg_yandex_token = pfc::stringcvt::string_utf8_from_os(uGetDlgItemText(m_hWnd, IDC_YANDEX_TOKEN));
+        cfg_yandex_token = uGetDlgItemText(m_hWnd, IDC_YANDEX_TOKEN).get_ptr();
     }
     
     void reset() override {
@@ -153,7 +156,7 @@ public:
     }
     
     void OnSearchBtn(UINT, int, CWindow) {
-        pfc::string8 query = pfc::stringcvt::string_utf8_from_os(uGetDlgItemText(m_hWnd, IDC_YANDEX_SEARCH_EDIT));
+        pfc::string8 query = uGetDlgItemText(m_hWnd, IDC_YANDEX_SEARCH_EDIT);
         if (query.is_empty()) return;
         
         bool isAlbum = IsDlgButtonChecked(IDC_YANDEX_RADIO_ALBUM) == BST_CHECKED;
@@ -177,7 +180,7 @@ public:
             auto j = nlohmann::json::parse(response);
             
             if (isAlbum) {
-                if(j.contains("result") && j["result"].contains("albums") && j["result"]["albums"].contains("results")) {
+                if(j.contains("result") && j["result"].contains("albums") && j["result"].at("albums").contains("results")) {
                     for (auto& item : j["result"]["albums"]["results"]) {
                         std::string title = item["title"].get<std::string>();
                         std::string artist = "Unknown Artist";
@@ -192,7 +195,7 @@ public:
                     }
                 }
             } else {
-                if(j.contains("result") && j["result"].contains("tracks") && j["result"]["tracks"].contains("results")) {
+                if(j.contains("result") && j["result"].contains("tracks") && j["result"].at("tracks").contains("results")) {
                     for (auto& item : j["result"]["tracks"]["results"]) {
                         std::string title = item["title"].get<std::string>();
                         std::string artist = "Unknown Artist";
@@ -214,21 +217,12 @@ public:
     
     LRESULT OnListDblClk(LPNMHDR pnmh) {
         LPNMITEMACTIVATE pnmia = (LPNMITEMACTIVATE)pnmh;
-        if (pnmia->iItem >= 0 && pnmia->iItem < m_results.size()) {
+        if (pnmia->iItem >= 0 && (size_t)pnmia->iItem < m_results.size()) {
             pfc::string8 url = m_results[pnmia->iItem].c_str();
             
-            metadb_handle_list items;
             pfc::list_single_ref_t<const char*> url_list(url.get_ptr());
-            
-            static_api_ptr_t<playlist_incoming_item_filter> filter;
-            filter->process_locations_async(
-                url_list,
-                playlist_incoming_item_filter_op_flags::op_flag_background,
-                NULL,
-                NULL,
-                m_hWnd,
-                fb2k::msgFilterItems
-            );
+            static_api_ptr_t<playlist_manager> pm;
+            pm->activeplaylist_add_locations(url_list, false, core_api::get_main_window());
         }
         return 0;
     }
