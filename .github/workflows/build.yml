@@ -9,36 +9,42 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download latest foobar2000 SDK
+      - name: Download foobar2000 SDK
         run: |
-          curl -o sdk.7z https://www.foobar2000.org/downloads/SDK-2025-03-07.7z
+          curl -L -o sdk.7z https://www.foobar2000.org/downloads/SDK-2025-03-07.7z
           7z x sdk.7z -oC:\foobar2000-sdk
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
 
-      - name: Install JSON library
+      - name: Prepare dependencies (WTL & JSON)
         run: |
-          vcpkg install nlohmann-json:x86-windows
-          vcpkg integrate install
+          # Качаем WTL и раскидываем хедеры прямо в папки проектов фубара
+          curl -L -o wtl.zip https://sourceforge.net/projects/wtl/files/WTL%2010/WTL%2010.0.10320/WTL10_10320.zip/download
+          7z x wtl.zip -oC:\wtl
+          Copy-Item C:\wtl\Include\* C:\foobar2000-sdk\foobar2000\helpers\ -Force
+          Copy-Item C:\wtl\Include\* C:\foobar2000-sdk\libPPUI\ -Force
+          Copy-Item C:\wtl\Include\* C:\foobar2000-sdk\foobar2000\foo_sample\ -Force
+
+          # Качаем json.hpp напрямую, без долгого vcpkg
+          New-Item -Path C:\foobar2000-sdk\foobar2000\foo_sample\nlohmann -ItemType Directory -Force
+          curl -L -o C:\foobar2000-sdk\foobar2000\foo_sample\nlohmann\json.hpp https://github.com/nlohmann/json/releases/download/v3.11.3/json.hpp
 
       - name: Hijack foo_sample and build
         run: |
-          # В студийных проектах фубара требуется PCH (stdafx.h)
-          # Инжектим его в наш код, чтобы компилятор не ругался
+          # Инжектим stdafx.h для поддержки Precompiled Headers студии
           $main_code = Get-Content main.cpp -Raw
           "#include `"stdafx.h`"`r`n" + $main_code | Set-Content C:\foobar2000-sdk\foobar2000\foo_sample\main.cpp
-          
-          # Закидываем наш заголовочный файл API
           Copy-Item yandex_api.hpp C:\foobar2000-sdk\foobar2000\foo_sample\yandex_api.hpp -Force
           
-          # Собираем
+          # Собираем с форсированием свежего тулсета
           cd C:\foobar2000-sdk\foobar2000\foo_sample
-          msbuild foo_sample.vcxproj /p:Configuration=Release /p:Platform=Win32 /p:TargetName=foo_yandex_music
+          msbuild foo_sample.vcxproj /p:Configuration=Release /p:Platform=Win32 /p:TargetName=foo_yandex_music /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: foo_yandex_music
-          # Ищем dll по всей папке, чтобы не угадывать куда её сложит MSBuild
           path: C:\foobar2000-sdk\foobar2000\**\foo_yandex_music.dll
