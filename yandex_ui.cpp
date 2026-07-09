@@ -187,7 +187,7 @@ public:
                         if (!item["artists"].empty()) {
                             artist = item["artists"][0]["name"].get<std::string>();
                         }
-                        std::string id = std::to_string(item["id"].get<int>());
+                        std::string id = item["id"].is_string() ? item["id"].get<std::string>() : (item["id"].is_number() ? std::to_string(item["id"].get<int>()) : "");
                         
                         int idx = list.InsertItem(list.GetItemCount(), pfc::stringcvt::string_os_from_utf8(title.c_str()));
                         list.SetItemText(idx, 1, pfc::stringcvt::string_os_from_utf8(artist.c_str()));
@@ -202,7 +202,7 @@ public:
                         if (!item["artists"].empty()) {
                             artist = item["artists"][0]["name"].get<std::string>();
                         }
-                        std::string id = std::to_string(item["id"].get<int>());
+                        std::string id = item["id"].is_string() ? item["id"].get<std::string>() : (item["id"].is_number() ? std::to_string(item["id"].get<int>()) : "");
                         
                         int idx = list.InsertItem(list.GetItemCount(), pfc::stringcvt::string_os_from_utf8(title.c_str()));
                         list.SetItemText(idx, 1, pfc::stringcvt::string_os_from_utf8(artist.c_str()));
