@@ -86,11 +86,15 @@ public:
 
         if (download_url.empty()) throw exception_io_not_found();
 
-        std::string prefix = "https://api.music.yandex.net";
-        if (download_url.find(prefix) != 0) throw exception_io_not_found();
+        if (download_url.find("https://") != 0) throw exception_io_not_found();
+        size_t host_end = download_url.find("/", 8);
+        if (host_end == std::string::npos) throw exception_io_not_found();
+        std::string req_host = download_url.substr(8, host_end - 8);
+        std::string req_path = download_url.substr(host_end);
 
-        std::wstring wxmlpath = pfc::stringcvt::string_wide_from_utf8(download_url.substr(prefix.length()).c_str()).get_ptr();
-        std::string xml_resp = YandexAPI::HttpRequest(L"api.music.yandex.net", wxmlpath, wtoken);
+        std::wstring wxmlhost = pfc::stringcvt::string_wide_from_utf8(req_host.c_str()).get_ptr();
+        std::wstring wxmlpath = pfc::stringcvt::string_wide_from_utf8(req_path.c_str()).get_ptr();
+        std::string xml_resp = YandexAPI::HttpRequest(wxmlhost, wxmlpath, wtoken);
 
         std::string host = extract_tag(xml_resp, "host");
         std::string path = extract_tag(xml_resp, "path");
