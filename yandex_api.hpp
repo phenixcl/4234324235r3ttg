@@ -5,6 +5,8 @@
 #include <regex>
 #include <nlohmann/json.hpp>
 
+#pragma comment(lib, "winhttp.lib")
+
 using json = nlohmann::json;
 
 class YandexAPI {
@@ -85,8 +87,11 @@ public:
 
         std::string sign_str = "XGRlBW9FXlekgbPrRHuAle" + path.substr(1) + s;
         
-        hasher_md5_result hash;
-        hasher_md5::get()->process(&hash, sign_str.c_str(), sign_str.length());
+        hasher_md5_state state;
+        auto hasher = hasher_md5::get();
+        hasher->initialize(state);
+        hasher->process(state, sign_str.c_str(), sign_str.length());
+        hasher_md5_result hash = hasher->get_result(state);
         
         char md5_hex[33];
         for (int i = 0; i < 16; i++) snprintf(md5_hex + i * 2, 3, "%02x", hash.m_data[i]);
