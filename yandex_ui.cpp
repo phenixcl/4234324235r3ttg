@@ -4,6 +4,7 @@
 #include <helpers/foobar2000+atl.h>
 #include <helpers/BumpableElem.h>
 #include "yandex_api.hpp"
+#include <nlohmann/json.hpp>
 #include <vector>
 #include <string>
 #include <thread>
@@ -233,15 +234,57 @@ public:
     }
     
     LRESULT OnListDblClk(LPNMHDR pnmh) {
-        LPNMITEMACTIVATE pnmia = (LPNMITEMACTIVATE)pnmh;
-        if (pnmia->iItem >= 0 && (size_t)pnmia->iItem < m_results.size()) {
-            const char* url_ptr = m_results[pnmia->iItem].c_str();
-            pfc::list_single_ref_t<const char*> url_list(url_ptr);
-            static_api_ptr_t<playlist_manager> pm;
-            pm->activeplaylist_add_locations(url_list, false, core_api::get_main_window());
-        }
-        return 0;
-    }
+          LPNMITEMACTIVATE pnmia = (LPNMITEMACTIVATE)pnmh;
+          if (pnmia->iItem >= 0 && (size_t)pnmia->iItem < m_results.size()) {
+              const TrackInfo& track = m_results[pnmia->iItem];
+              std::string url = "yandex://track/" + track.id;
+              
+              std::string wtoken = cfg_yandex_token.get_ptr();
+              std::wstring wtoken_wide = pfc::stringcvt::string_wide_from_utf8(wtoken.c_str()).get_ptr();
+              
+              std::wstring wpath = pfc::stringcvt::string_wide_from_utf8(("/tracks/" + track.id + "/download-info").c_str()).get_ptr();
+              std::string info_resp = YandexAPI::HttpRequest(L"api.music.yandex.net", wpath, wtoken_wide);
+              
+              std::string final_codec = "mp3";
+              bool want_hq = cfg_yandex_hq.get();
+              if (!info_resp.empty()) {
+                  try {
+                      auto j = nlohmann::json::parse(info_resp);
+                      for (auto& stream : j["result"]) {
+                          std::string codec = stream["codec"].get<std::string>();
+                          if (want_hq && codec == "flac") {
+                              final_codec = "flac";
+                              break;
+                          }
+                      }
+                  } catch (...) {}
+              }
+              url += "." + final_codec;
+
+              pfc::list_single_ref_t<const char*> url_list(url.c_str());
+              static_api_ptr_t<playlist_manager> pm;
+              pm->activeplaylist_add_locations(url_list, false, core_api::get_main_window());
+              
+              try {
+                  metadb_handle_ptr handle;
+                  metadb::get()->handle_create(handle, make_playable_location(url.c_str(), 0));
+                  
+                  file_info_impl info;
+                  info.meta_set("TITLE", track.title.c_str());
+                  info.meta_set("ARTIST", track.artist.c_str());
+                  if (!track.album.empty()) info.meta_set("ALBUM", track.album.c_str());
+                  
+                  pfc::list_single_ref_t<metadb_handle_ptr> l_handle(handle);
+                  pfc::list_single_ref_t<const file_info*> l_info(&info);
+                  t_filestats stats = filestats_invalid;
+                  pfc::list_single_ref_t<t_filestats> l_stats(stats);
+                  bit_array_true mask;
+                  
+                  metadb_io::get()->hint_multi_async(l_handle, l_info, l_stats, mask);
+              } catch (...) {}
+          }
+          return 0;
+      }
     
     void notify(const GUID & p_what, t_size p_param1, const void * p_param2, t_size p_param2size) {}
 
