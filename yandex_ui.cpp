@@ -14,6 +14,9 @@
 static const GUID guid_cfg_yandex_token = { 0x5a1b32f1, 0xc8a4, 0x4f12, { 0x9e, 0x21, 0x1d, 0x5c, 0xa1, 0x4f, 0x12, 0x3d } };
 cfg_string cfg_yandex_token(guid_cfg_yandex_token, "");
 
+static const GUID guid_cfg_yandex_hq = { 0x5a1b32f2, 0xc8a4, 0x4f12, { 0x9e, 0x21, 0x1d, 0x5c, 0xa1, 0x4f, 0x12, 0x3e } };
+cfg_bool cfg_yandex_hq(guid_cfg_yandex_hq, true);
+
 // URL Encoding helper
 std::string url_encode(const std::string &value) {
     std::ostringstream escaped;
@@ -41,15 +44,21 @@ public:
     BEGIN_MSG_MAP_EX(CYandexPreferences)
         MSG_WM_INITDIALOG(OnInitDialog)
         COMMAND_HANDLER_EX(IDC_YANDEX_TOKEN, EN_CHANGE, OnEditChange)
-        COMMAND_HANDLER_EX(IDC_YANDEX_LOGIN_BTN, BN_CLICKED, OnLoginBtn)
+        COMMAND_HANDLER_EX(IDC_YANDEX_HQ, BN_CLICKED, OnCheckChange)
+        COMMAND_ID_HANDLER_EX(IDC_YANDEX_LOGIN_BTN, OnLoginBtn)
     END_MSG_MAP()
     
     BOOL OnInitDialog(CWindow, LPARAM) {
         uSetDlgItemText(m_hWnd, IDC_YANDEX_TOKEN, cfg_yandex_token.get_ptr());
+        CheckDlgButton(IDC_YANDEX_HQ, cfg_yandex_hq.get() ? BST_CHECKED : BST_UNCHECKED);
         return TRUE;
     }
     
     void OnEditChange(UINT, int, CWindow) {
+        m_callback->on_state_changed();
+    }
+    
+    void OnCheckChange(UINT, int, CWindow) {
         m_callback->on_state_changed();
     }
     
@@ -61,11 +70,13 @@ public:
         uint32_t state = preferences_state::resettable;
         pfc::string8 current_token = uGetDlgItemText(m_hWnd, IDC_YANDEX_TOKEN);
         if (current_token != cfg_yandex_token.get_ptr()) state |= preferences_state::changed;
+        if ((IsDlgButtonChecked(IDC_YANDEX_HQ) == BST_CHECKED) != cfg_yandex_hq.get()) state |= preferences_state::changed;
         return state;
     }
     
     void apply() override {
         cfg_yandex_token = uGetDlgItemText(m_hWnd, IDC_YANDEX_TOKEN).get_ptr();
+        cfg_yandex_hq = (IsDlgButtonChecked(IDC_YANDEX_HQ) == BST_CHECKED);
     }
     
     void reset() override {

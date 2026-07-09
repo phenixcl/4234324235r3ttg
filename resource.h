@@ -43,6 +43,7 @@
 #define IDC_YANDEX_RADIO_TRACK          2005
 #define IDC_YANDEX_RADIO_ALBUM          2006
 #define IDC_YANDEX_RESULTS_LIST         2007
+#define IDC_YANDEX_HQ                   2008
 
 // Next default values for new objects
 // 
