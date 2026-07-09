@@ -15,6 +15,8 @@ public:
         std::string path_str = m_path;
         if (path_str.find("yandex://track/") != 0) throw exception_album_art_not_found();
         std::string id_str = path_str.substr(15);
+        size_t dot_pos = id_str.find('.');
+        if (dot_pos != std::string::npos) id_str = id_str.substr(0, dot_pos);
 
         std::string wtoken = cfg_yandex_token.get_ptr();
         std::wstring wtoken_wide = pfc::stringcvt::string_wide_from_utf8(wtoken.c_str()).get_ptr();
