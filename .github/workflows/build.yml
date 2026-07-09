@@ -2,7 +2,7 @@
     run: |
       curl -o sdk.7z https://www.foobar2000.org/files/SDK-2023-09-21.7z
       7z x sdk.7z -oC:\foobar2000-sdk
-      
+
   - name: Install JSON library
     run: vcpkg install nlohmann-json:x86-windows
 
