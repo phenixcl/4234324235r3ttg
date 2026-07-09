@@ -235,7 +235,8 @@ public:
     LRESULT OnListDblClk(LPNMHDR pnmh) {
         LPNMITEMACTIVATE pnmia = (LPNMITEMACTIVATE)pnmh;
         if (pnmia->iItem >= 0 && (size_t)pnmia->iItem < m_results.size()) {
-            pfc::list_single_ref_t<const char*> url_list(m_results[pnmia->iItem].c_str());
+            const char* url_ptr = m_results[pnmia->iItem].c_str();
+            pfc::list_single_ref_t<const char*> url_list(url_ptr);
             static_api_ptr_t<playlist_manager> pm;
             pm->activeplaylist_add_locations(url_list, false, core_api::get_main_window());
         }
