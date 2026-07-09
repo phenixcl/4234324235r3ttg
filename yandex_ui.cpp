@@ -282,7 +282,8 @@ public:
                   final_url += "." + final_codec;
               }
 
-              pfc::list_single_ref_t<const char*> url_list(final_url.c_str());
+              const char* p_url = final_url.c_str();
+              pfc::list_single_ref_t<const char*> url_list(p_url);
               static_api_ptr_t<playlist_manager> pm;
               pm->activeplaylist_add_locations(url_list, false, core_api::get_main_window());
               
@@ -294,7 +295,8 @@ public:
                       info.meta_set("TITLE", res.title.c_str());
                       info.meta_set("ARTIST", res.artist.c_str());
                       pfc::list_single_ref_t<metadb_handle_ptr> l_handle(handle);
-                      pfc::list_single_ref_t<const file_info*> l_info(&info);
+                      const file_info* p_info = &info;
+                      pfc::list_single_ref_t<const file_info*> l_info(p_info);
                       t_filestats stats = filestats_invalid;
                       pfc::list_single_ref_t<t_filestats> l_stats(stats);
                       bit_array_true mask;
