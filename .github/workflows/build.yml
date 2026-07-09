@@ -50,7 +50,7 @@ jobs:
           $projPath = "C:\foobar2000-sdk\foobar2000\foo_sample\foo_sample.vcxproj"
           $proj = Get-Content $projPath -Raw
           $proj = $proj -replace '<Link>', '<Link><AdditionalOptions>/FORCE:MULTIPLE %(AdditionalOptions)</AdditionalOptions>'
-          $proj = $proj -replace '<ClCompile Include="main.cpp" />', '<ClCompile Include="main.cpp" /><ClCompile Include="yandex_ui.cpp" /><ClCompile Include="yandex_filesystem.cpp" />'
+          $proj = $proj -replace '<ClCompile Include="main.cpp" />', '<ClCompile Include="main.cpp" /><ClCompile Include="yandex_ui.cpp" /><ClCompile Include="yandex_filesystem.cpp" /><ClCompile Include="yandex_album_art.cpp" />'
           $proj | Set-Content $projPath          
           # Собираем
           cd C:\foobar2000-sdk\foobar2000\foo_sample
