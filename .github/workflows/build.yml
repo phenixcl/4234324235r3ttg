@@ -18,10 +18,11 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x86
+          toolset: 14.3
 
       - name: Prepare dependencies
         run: |
-          # Ставим WTL через встроенный менеджер (скачается моментально)
+          # Ставим WTL через встроенный менеджер
           vcpkg install wtl:x86-windows
           vcpkg integrate install
 
@@ -31,12 +32,12 @@ jobs:
 
       - name: Hijack foo_sample and build
         run: |
-          # Инжектим stdafx.h для поддержки PCH
+          # Инжектим stdafx.h для поддержки PCH студии
           $main_code = Get-Content main.cpp -Raw
           "#include `"stdafx.h`"`r`n" + $main_code | Set-Content C:\foobar2000-sdk\foobar2000\foo_sample\main.cpp
           Copy-Item yandex_api.hpp C:\foobar2000-sdk\foobar2000\foo_sample\yandex_api.hpp -Force
           
-          # Собираем (добавлен флаг UseEnv=true)
+          # Собираем
           cd C:\foobar2000-sdk\foobar2000\foo_sample
           msbuild foo_sample.vcxproj /p:Configuration=Release /p:Platform=Win32 /p:TargetName=foo_yandex_music /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0 /p:UseEnv=true
 
