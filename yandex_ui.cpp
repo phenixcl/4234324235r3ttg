@@ -253,3 +253,5 @@ private:
 };
 
 static service_factory_single_t<ui_element_impl_withpopup<CYandexUI>> g_yandex_ui_factory;
+
+void force_link_yandex_ui() {}
