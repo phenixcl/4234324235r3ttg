@@ -103,6 +103,14 @@ static preferences_page_factory_t<preferences_page_yandeximpl> g_preferences_pag
 // -----------------------------------------------------------------------------
 // UI Element (Search Panel)
 // -----------------------------------------------------------------------------
+struct SearchResult {
+    std::string url;
+    std::string id;
+    std::string title;
+    std::string artist;
+    bool is_track;
+};
+
 class CYandexUI : public CDialogImpl<CYandexUI>, public ui_element_instance {
 public:
     CYandexUI(ui_element_config::ptr cfg, ui_element_instance_callback::ptr cb) : m_callback(cb) {}
@@ -209,22 +217,35 @@ public:
                         
                         int idx = list.InsertItem(list.GetItemCount(), pfc::stringcvt::string_os_from_utf8(title.c_str()));
                         list.SetItemText(idx, 1, pfc::stringcvt::string_os_from_utf8(artist.c_str()));
-                        m_results.push_back("yandex://album/" + id);
+                        SearchResult r;
+                        r.url = "yandex://album/" + id;
+                        r.id = id;
+                        r.title = title;
+                        r.artist = artist;
+                        r.is_track = false;
+                        m_results.push_back(r);
                     }
                 }
             } else {
-                if(j.contains("result") && j["result"].contains("tracks") && j["result"].at("tracks").contains("results")) {
-                    for (auto& item : j["result"]["tracks"]["results"]) {
-                        std::string title = item["title"].get<std::string>();
-                        std::string artist = "Unknown Artist";
-                        if (!item["artists"].empty()) {
-                            artist = item["artists"][0]["name"].get<std::string>();
+                auto tracks = j["result"]["tracks"]["results"];
+                for (auto& track : tracks) {
+                    if (track.contains("title") && track.contains("id")) {
+                        std::string title = track["title"].get<std::string>();
+                        std::string id = track["id"].is_number() ? std::to_string(track["id"].get<int>()) : track["id"].get<std::string>();
+                        std::string artist = "";
+                        if (track.contains("artists") && track["artists"].is_array() && track["artists"].size() > 0) {
+                            artist = track["artists"][0]["name"].get<std::string>();
                         }
-                        std::string id = item["id"].is_string() ? item["id"].get<std::string>() : (item["id"].is_number() ? std::to_string(item["id"].get<int>()) : "");
                         
                         int idx = list.InsertItem(list.GetItemCount(), pfc::stringcvt::string_os_from_utf8(title.c_str()));
                         list.SetItemText(idx, 1, pfc::stringcvt::string_os_from_utf8(artist.c_str()));
-                        m_results.push_back("yandex://track/" + id);
+                        SearchResult r;
+                        r.url = "yandex://track/" + id;
+                        r.id = id;
+                        r.title = title;
+                        r.artist = artist;
+                        r.is_track = true;
+                        m_results.push_back(r);
                     }
                 }
             }
@@ -236,52 +257,50 @@ public:
     LRESULT OnListDblClk(LPNMHDR pnmh) {
           LPNMITEMACTIVATE pnmia = (LPNMITEMACTIVATE)pnmh;
           if (pnmia->iItem >= 0 && (size_t)pnmia->iItem < m_results.size()) {
-              const TrackInfo& track = m_results[pnmia->iItem];
-              std::string url = "yandex://track/" + track.id;
+              const SearchResult& res = m_results[pnmia->iItem];
+              std::string final_url = res.url;
               
-              std::string wtoken = cfg_yandex_token.get_ptr();
-              std::wstring wtoken_wide = pfc::stringcvt::string_wide_from_utf8(wtoken.c_str()).get_ptr();
-              
-              std::wstring wpath = pfc::stringcvt::string_wide_from_utf8(("/tracks/" + track.id + "/download-info").c_str()).get_ptr();
-              std::string info_resp = YandexAPI::HttpRequest(L"api.music.yandex.net", wpath, wtoken_wide);
-              
-              std::string final_codec = "mp3";
-              bool want_hq = cfg_yandex_hq.get();
-              if (!info_resp.empty()) {
-                  try {
-                      auto j = nlohmann::json::parse(info_resp);
-                      for (auto& stream : j["result"]) {
-                          std::string codec = stream["codec"].get<std::string>();
-                          if (want_hq && codec == "flac") {
-                              final_codec = "flac";
-                              break;
+              if (res.is_track) {
+                  std::string wtoken = cfg_yandex_token.get_ptr();
+                  std::wstring wtoken_wide = pfc::stringcvt::string_wide_from_utf8(wtoken.c_str()).get_ptr();
+                  std::wstring wpath = pfc::stringcvt::string_wide_from_utf8(("/tracks/" + res.id + "/download-info").c_str()).get_ptr();
+                  std::string info_resp = YandexAPI::HttpRequest(L"api.music.yandex.net", wpath, wtoken_wide);
+                  std::string final_codec = "mp3";
+                  bool want_hq = cfg_yandex_hq.get();
+                  if (!info_resp.empty()) {
+                      try {
+                          auto j = nlohmann::json::parse(info_resp);
+                          for (auto& stream : j["result"]) {
+                              std::string codec = stream["codec"].get<std::string>();
+                              if (want_hq && codec == "flac") {
+                                  final_codec = "flac";
+                                  break;
+                              }
                           }
-                      }
-                  } catch (...) {}
+                      } catch (...) {}
+                  }
+                  final_url += "." + final_codec;
               }
-              url += "." + final_codec;
 
-              pfc::list_single_ref_t<const char*> url_list(url.c_str());
+              pfc::list_single_ref_t<const char*> url_list(final_url.c_str());
               static_api_ptr_t<playlist_manager> pm;
               pm->activeplaylist_add_locations(url_list, false, core_api::get_main_window());
               
-              try {
-                  metadb_handle_ptr handle;
-                  metadb::get()->handle_create(handle, make_playable_location(url.c_str(), 0));
-                  
-                  file_info_impl info;
-                  info.meta_set("TITLE", track.title.c_str());
-                  info.meta_set("ARTIST", track.artist.c_str());
-                  if (!track.album.empty()) info.meta_set("ALBUM", track.album.c_str());
-                  
-                  pfc::list_single_ref_t<metadb_handle_ptr> l_handle(handle);
-                  pfc::list_single_ref_t<const file_info*> l_info(&info);
-                  t_filestats stats = filestats_invalid;
-                  pfc::list_single_ref_t<t_filestats> l_stats(stats);
-                  bit_array_true mask;
-                  
-                  metadb_io::get()->hint_multi_async(l_handle, l_info, l_stats, mask);
-              } catch (...) {}
+              if (res.is_track) {
+                  try {
+                      metadb_handle_ptr handle;
+                      metadb::get()->handle_create(handle, make_playable_location(final_url.c_str(), 0));
+                      file_info_impl info;
+                      info.meta_set("TITLE", res.title.c_str());
+                      info.meta_set("ARTIST", res.artist.c_str());
+                      pfc::list_single_ref_t<metadb_handle_ptr> l_handle(handle);
+                      pfc::list_single_ref_t<const file_info*> l_info(&info);
+                      t_filestats stats = filestats_invalid;
+                      pfc::list_single_ref_t<t_filestats> l_stats(stats);
+                      bit_array_true mask;
+                      metadb_io::get()->hint_multi_async(l_handle, l_info, l_stats, mask);
+                  } catch (...) {}
+              }
           }
           return 0;
       }
@@ -291,7 +310,7 @@ public:
     const ui_element_instance_callback::ptr m_callback;
 
 private:
-    std::vector<std::string> m_results;
+    std::vector<SearchResult> m_results;
 };
 
 static service_factory_single_t<ui_element_impl_withpopup<CYandexUI>> g_yandex_ui_factory;
