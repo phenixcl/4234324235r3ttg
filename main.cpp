@@ -48,11 +48,20 @@ public:
     void remove(const char * p_path, abort_callback & p_abort) override { throw exception_io_denied(); }
     void move(const char * p_src, const char * p_dst, abort_callback & p_abort) override { throw exception_io_denied(); }
     bool is_remote(const char * p_path) override { return true; }
-    bool get_relative_path(const char * p_path, const char * p_base, pfc::string_base & p_out) override { return false; }
-    t_filestats get_stats(const char * p_path, abort_callback & p_abort) override {
-        return filestats_invalid;
+    
+    void get_stats(const char * p_path, t_filestats & p_stats, bool & p_is_writeable, abort_callback & p_abort) override {
+        p_stats = filestats_invalid;
+        p_is_writeable = false;
     }
-    void abort() override {}
+    
+    void create_directory(const char * p_path, abort_callback & p_abort) override {
+        throw exception_io_denied();
+    }
+    
+    void list_directory(const char * p_path, directory_callback & p_callback, abort_callback & p_abort) override {
+        throw exception_io_not_found();
+    }
+    
     bool supports_content_types() override { return true; }
 };
 
