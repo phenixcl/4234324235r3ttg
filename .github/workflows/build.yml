@@ -25,9 +25,9 @@ jobs:
           vcpkg install wtl:x86-windows
           vcpkg integrate install
 
-          # Качаем json.hpp напрямую
-          New-Item -Path C:\foobar2000-sdk\foobar2000\foo_sample\nlohmann -ItemType Directory -Force
-          curl -L -o C:\foobar2000-sdk\foobar2000\foo_sample\nlohmann\json.hpp https://github.com/nlohmann/json/releases/download/v3.11.3/json.hpp
+          # Качаем json.hpp сразу в системную папку инклудов vcpkg, чтобы студия нашла её через угловые скобки
+          New-Item -Path C:\vcpkg\installed\x86-windows\include\nlohmann -ItemType Directory -Force
+          curl -L -o C:\vcpkg\installed\x86-windows\include\nlohmann\json.hpp https://github.com/nlohmann/json/releases/download/v3.11.3/json.hpp
 
       - name: Hijack foo_sample and build
         run: |
