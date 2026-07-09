@@ -118,4 +118,4 @@ public:
     }
 };
 
-static filesystem_factory_t<yandex_filesystem> g_yandex_filesystem_factory;
+
