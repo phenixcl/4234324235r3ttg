@@ -10,6 +10,7 @@
 using json = nlohmann::json;
 
 class YandexAPI {
+public:
     static std::string HttpRequest(const std::wstring& host, const std::wstring& path, const std::wstring& auth_token) {
         HINTERNET hSession = WinHttpOpen(L"foo_yandex_music/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
         if (!hSession) return "";
