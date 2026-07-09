@@ -12,14 +12,18 @@ using json = nlohmann::json;
 class YandexAPI {
 public:
     static std::string HttpRequest(const std::wstring& host, const std::wstring& path, const std::wstring& auth_token) {
-        HINTERNET hSession = WinHttpOpen(L"foo_yandex_music/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+        HINTERNET hSession = WinHttpOpen(L"Yandex-Music-API", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
         if (!hSession) return "";
 
         HINTERNET hConnect = WinHttpConnect(hSession, host.c_str(), INTERNET_DEFAULT_HTTPS_PORT, 0);
         HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"GET", path.c_str(), NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
 
         if (!auth_token.empty()) {
-            std::wstring header = L"Authorization: OAuth " + auth_token + L"\r\n";
+            std::wstring header = L"Authorization: OAuth " + auth_token + L"\r\n"
+                                  L"X-Yandex-Music-Client: YandexMusicAndroid/24023621\r\n";
+            WinHttpAddRequestHeaders(hRequest, header.c_str(), -1, WINHTTP_ADDREQ_FLAG_ADD | WINHTTP_ADDREQ_FLAG_REPLACE);
+        } else {
+            std::wstring header = L"X-Yandex-Music-Client: YandexMusicAndroid/24023621\r\n";
             WinHttpAddRequestHeaders(hRequest, header.c_str(), -1, WINHTTP_ADDREQ_FLAG_ADD | WINHTTP_ADDREQ_FLAG_REPLACE);
         }
 

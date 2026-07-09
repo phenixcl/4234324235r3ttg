@@ -179,6 +179,12 @@ public:
             
             auto j = nlohmann::json::parse(response);
             
+            if (j.contains("error")) {
+                std::string err = j["error"].is_string() ? j["error"].get<std::string>() : (j["error"].contains("name") ? j["error"]["name"].get<std::string>() : "Unknown API error");
+                MessageBox(pfc::stringcvt::string_os_from_utf8(err.c_str()), _T("Yandex API Error"), MB_OK | MB_ICONERROR);
+                return;
+            }
+            
             if (isAlbum) {
                 if(j.contains("result") && j["result"].contains("albums") && j["result"].at("albums").contains("results")) {
                     for (auto& item : j["result"]["albums"]["results"]) {
