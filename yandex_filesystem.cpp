@@ -47,7 +47,7 @@ public:
         // Return a dummy empty in-memory file so foobar2000 does not abort
         // the playback pipeline. The actual audio stream is opened by our
         // input handler (yandex_input) which ignores the file hint.
-        file::g_open_tempmem(p_out, p_abort);
+        filesystem::g_open_tempmem(p_out, p_abort);
     }
 };
 
