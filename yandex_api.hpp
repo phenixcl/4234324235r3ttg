@@ -20,10 +20,10 @@ public:
 
         if (!auth_token.empty()) {
             std::wstring header = L"Authorization: OAuth " + auth_token + L"\r\n"
-                                  L"X-Yandex-Music-Client: YandexMusicAndroid/24023621\r\n";
+                                  L"X-Yandex-Music-Client: YandexMusicWebNext/1.0.0\r\n";
             WinHttpAddRequestHeaders(hRequest, header.c_str(), -1, WINHTTP_ADDREQ_FLAG_ADD | WINHTTP_ADDREQ_FLAG_REPLACE);
         } else {
-            std::wstring header = L"X-Yandex-Music-Client: YandexMusicAndroid/24023621\r\n";
+            std::wstring header = L"X-Yandex-Music-Client: YandexMusicWebNext/1.0.0\r\n";
             WinHttpAddRequestHeaders(hRequest, header.c_str(), -1, WINHTTP_ADDREQ_FLAG_ADD | WINHTTP_ADDREQ_FLAG_REPLACE);
         }
 
