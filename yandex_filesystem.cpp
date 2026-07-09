@@ -107,7 +107,7 @@ public:
 
         char hex_buf[33];
         for (int i = 0; i < 16; ++i) {
-            sprintf(hex_buf + i * 2, "%02x", hash_res.m_data[i]);
+            sprintf(hex_buf + i * 2, "%02x", (unsigned char)hash_res.m_data[i]);
         }
         hex_buf[32] = 0;
 
