@@ -84,10 +84,9 @@ static std::string ym_extract_tag(const std::string& xml, const std::string& tag
 // Input: decodes yandex://track/<id> with metadata + FLAC
 // =====================================================
 
-class yandex_input {
+class yandex_input : public input_stubs {
     service_ptr_t<input_decoder> m_decoder;
     file_info_impl m_info;
-    t_filestats m_stats;
 
 public:
     void open(service_ptr_t<file> p_filehint, const char * p_path, t_input_open_reason p_reason, abort_callback & p_abort) {
@@ -230,12 +229,8 @@ public:
         // --- 4. Open the inner decoder for the real HTTP(S) URL ---
         if (p_reason == input_open_info_read) {
             // We already have metadata from the API – no need to open a decoder
-            m_stats.m_size = filesize_invalid;
-            m_stats.m_timestamp = filetimestamp_invalid;
         } else {
             input_entry::g_open_for_decoding(m_decoder, nullptr, direct_url.c_str(), p_abort);
-            m_stats.m_size = filesize_invalid;
-            m_stats.m_timestamp = filetimestamp_invalid;
         }
     }
 
@@ -243,8 +238,8 @@ public:
         p_info = m_info;
     }
 
-    t_filestats get_file_stats(abort_callback & p_abort) {
-        return m_stats;
+    t_filestats2 get_stats2(uint32_t f, abort_callback & p_abort) {
+        return t_filestats2::from_legacy(filestats_invalid);
     }
 
     void decode_initialize(unsigned p_flags, abort_callback & p_abort) {
@@ -279,11 +274,11 @@ public:
         if (m_decoder.is_valid()) m_decoder->on_idle(p_abort);
     }
 
-    void retag_set_info(t_uint32 p_subsong, const file_info & p_info, abort_callback & p_abort) {
+    void retag(const file_info & p_info, abort_callback & p_abort) {
         throw exception_tagging_unsupported();
     }
 
-    void retag_commit(abort_callback & p_abort) {
+    void remove_tags(abort_callback & p_abort) {
         throw exception_tagging_unsupported();
     }
 
@@ -291,6 +286,13 @@ public:
     static bool g_is_our_path(const char * p_path, const char * p_extension) {
         return strncmp(p_path, "yandex://", 9) == 0;
     }
+    static GUID g_get_guid() {
+        // {A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
+        static const GUID guid = { 0xa1b2c3d4, 0xe5f6, 0x7890, { 0xab, 0xcd, 0xef, 0x12, 0x34, 0x56, 0x78, 0x90 } };
+        return guid;
+    }
+    static const char * g_get_name() { return "Yandex Music Input"; }
 };
 
 static input_singletrack_factory_t<yandex_input> g_yandex_input_factory;
+
