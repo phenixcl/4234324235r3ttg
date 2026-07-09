@@ -1,4 +1,3 @@
-#include "stdafx.h"
 #include <foobar2000/SDK/foobar2000.h>
 #include <foobar2000/SDK/album_art_helpers.h>
 #include <nlohmann/json.hpp>

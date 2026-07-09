@@ -41,6 +41,9 @@ jobs:
           $fs_code = Get-Content yandex_filesystem.cpp -Raw
           "#include `"stdafx.h`"`r`n" + $fs_code | Set-Content C:\foobar2000-sdk\foobar2000\foo_sample\yandex_filesystem.cpp
           
+          $art_code = Get-Content yandex_album_art.cpp -Raw
+          "#include `"stdafx.h`"`r`n" + $art_code | Set-Content C:\foobar2000-sdk\foobar2000\foo_sample\yandex_album_art.cpp
+          
           Copy-Item yandex_api.hpp C:\foobar2000-sdk\foobar2000\foo_sample\yandex_api.hpp -Force
           Copy-Item foo_sample.rc C:\foobar2000-sdk\foobar2000\foo_sample\foo_sample.rc -Force
           Copy-Item resource.h C:\foobar2000-sdk\foobar2000\foo_sample\resource.h -Force
