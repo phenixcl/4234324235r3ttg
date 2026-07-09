@@ -168,7 +168,7 @@ public:
         try {
             std::string type = isAlbum ? "album" : "track";
             std::string encoded_query = url_encode(query.get_ptr());
-            std::wstring wpath = pfc::stringcvt::string_wide_from_utf8(("/search?type=" + type + "&text=" + encoded_query).c_str()).get_ptr();
+            std::wstring wpath = pfc::stringcvt::string_wide_from_utf8(("/search?type=" + type + "&page=0&text=" + encoded_query).c_str()).get_ptr();
             std::wstring wtoken = pfc::stringcvt::string_wide_from_utf8(cfg_yandex_token.get_ptr()).get_ptr();
             
             std::string response = YandexAPI::HttpRequest(L"api.music.yandex.net", wpath, wtoken);
