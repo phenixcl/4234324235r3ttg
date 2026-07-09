@@ -9,21 +9,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download foobar2000 SDK
+      - name: Download latest foobar2000 SDK
         run: |
-          curl -o sdk.7z https://www.foobar2000.org/files/SDK-2023-09-21.7z
+          curl -o sdk.7z https://www.foobar2000.org/downloads/SDK-2025-03-07.7z
           7z x sdk.7z -oC:\foobar2000-sdk
 
-      - name: Install JSON library
-        run: vcpkg install nlohmann-json:x86-windows
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
 
-      - name: Build plugin
+      - name: Install JSON library
         run: |
-          cmake -B build -A Win32 -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
-          cmake --build build --config Release
+          vcpkg install nlohmann-json:x86-windows
+          vcpkg integrate install
+
+      - name: Hijack foo_sample and build
+        run: |
+          # В студийных проектах фубара требуется PCH (stdafx.h)
+          # Инжектим его в наш код, чтобы компилятор не ругался
+          $main_code = Get-Content main.cpp -Raw
+          "#include `"stdafx.h`"`r`n" + $main_code | Set-Content C:\foobar2000-sdk\foobar2000\foo_sample\main.cpp
+          
+          # Закидываем наш заголовочный файл API
+          Copy-Item yandex_api.hpp C:\foobar2000-sdk\foobar2000\foo_sample\yandex_api.hpp -Force
+          
+          # Собираем
+          cd C:\foobar2000-sdk\foobar2000\foo_sample
+          msbuild foo_sample.vcxproj /p:Configuration=Release /p:Platform=Win32 /p:TargetName=foo_yandex_music
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: foo_yandex_music
-          path: build/Release/foo_yandex_music.dll
+          # Ищем dll по всей папке, чтобы не угадывать куда её сложит MSBuild
+          path: C:\foobar2000-sdk\foobar2000\**\foo_yandex_music.dll
