@@ -229,8 +229,9 @@ public:
     
     void notify(const GUID & p_what, t_size p_param1, const void * p_param2, t_size p_param2size) {}
 
-private:
     const ui_element_instance_callback::ptr m_callback;
+
+private:
     std::vector<std::string> m_results;
 };
 
