@@ -298,7 +298,7 @@ public:
                       t_filestats stats = filestats_invalid;
                       pfc::list_single_ref_t<t_filestats> l_stats(stats);
                       bit_array_true mask;
-                      metadb_io::get()->hint_multi_async(l_handle, l_info, l_stats, mask);
+                      metadb_io::get()->hint_multi(l_handle, l_info, l_stats, mask);
                   } catch (...) {}
               }
           }
