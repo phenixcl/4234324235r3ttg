@@ -32,6 +32,16 @@ public:
         p_stats.m_timestamp = filetimestamp_invalid;
         p_is_writeable = false;
     }
+    
+    void create_directory(const char * p_path, abort_callback & p_abort) override {
+        throw exception_io_denied();
+    }
+    
+    void list_directory(const char * p_path, directory_callback & p_callback, abort_callback & p_abort) override {
+        throw exception_io_not_found();
+    }
+    
+    bool supports_content_types() override { return true; }
     void open(service_ptr_t<file> & p_out, const char * p_path, t_open_mode p_mode, abort_callback & p_abort) override {
         if (p_mode != open_mode_read) throw exception_io_denied();
 
