@@ -25,7 +25,7 @@ jobs:
           vcpkg install wtl:x86-windows
           vcpkg integrate install
 
-          # Качаем json.hpp сразу в системную папку инклудов vcpkg, чтобы студия нашла её через угловые скобки
+          # Качаем json.hpp сразу в системную папку инклудов vcpkg
           New-Item -Path C:\vcpkg\installed\x86-windows\include\nlohmann -ItemType Directory -Force
           curl -L -o C:\vcpkg\installed\x86-windows\include\nlohmann\json.hpp https://github.com/nlohmann/json/releases/download/v3.11.3/json.hpp
 
@@ -36,9 +36,12 @@ jobs:
           "#include `"stdafx.h`"`r`n" + $main_code | Set-Content C:\foobar2000-sdk\foobar2000\foo_sample\main.cpp
           Copy-Item yandex_api.hpp C:\foobar2000-sdk\foobar2000\foo_sample\yandex_api.hpp -Force
           
-          # Собираем (Target=v145)
+          # Собираем без переопределения TargetName, чтобы не ломать линкер
           cd C:\foobar2000-sdk\foobar2000\foo_sample
-          msbuild foo_sample.vcxproj /p:Configuration=Release /p:Platform=Win32 /p:TargetName=foo_yandex_music /p:PlatformToolset=v145 /p:WindowsTargetPlatformVersion=10.0 /p:UseEnv=true
+          msbuild foo_sample.vcxproj /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v145 /p:WindowsTargetPlatformVersion=10.0 /p:UseEnv=true
+          
+          # Переименовываем готовую dll в нужное название
+          Move-Item Release\foo_sample.dll Release\foo_yandex_music.dll
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
