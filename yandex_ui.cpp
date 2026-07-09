@@ -288,20 +288,7 @@ public:
               pm->activeplaylist_add_locations(url_list, false, core_api::get_main_window());
               
               if (res.is_track) {
-                  try {
-                      metadb_handle_ptr handle;
-                      metadb::get()->handle_create(handle, make_playable_location(final_url.c_str(), 0));
-                      file_info_impl info;
-                      info.meta_set("TITLE", res.title.c_str());
-                      info.meta_set("ARTIST", res.artist.c_str());
-                      pfc::list_single_ref_t<metadb_handle_ptr> l_handle(handle);
-                      const file_info* p_info = &info;
-                      pfc::list_single_ref_t<const file_info*> l_info(p_info);
-                      t_filestats stats = filestats_invalid;
-                      pfc::list_single_ref_t<t_filestats> l_stats(stats);
-                      bit_array_true mask;
-                      metadb_io::get()->hint_multi(l_handle, l_info, l_stats, mask);
-                  } catch (...) {}
+                  // Metadata is now fetched automatically by yandex_input
               }
           }
           return 0;
