@@ -115,7 +115,7 @@ public:
         }
         hex_buf[32] = 0;
 
-        std::string direct_url = "https://" + host + "/get-" + final_codec + "/" + std::string(hex_buf) + "/" + ts + path;
+        std::string direct_url = "https://" + host + "/get-mp3/" + std::string(hex_buf) + "/" + ts + path;
 
         filesystem::g_open(p_out, direct_url.c_str(), p_mode, p_abort);
     }
