@@ -21,7 +21,6 @@ public:
     bool get_content_type(pfc::string_base& p_out) override { return m_file->get_content_type(p_out); }
     void reopen(abort_callback& p_abort) override { m_file->reopen(p_abort); }
     bool is_remote() override { return m_file->is_remote(); }
-    t_filestats get_stats(abort_callback& p_abort) override { return m_file->get_stats(p_abort); }
 
     bool get_static_info(file_info& p_out) override {
         if (!m_title.empty()) p_out.meta_set("TITLE", m_title.c_str());
