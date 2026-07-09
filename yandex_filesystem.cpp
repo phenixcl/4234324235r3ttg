@@ -6,6 +6,42 @@
 extern cfg_string cfg_yandex_token;
 extern cfg_bool cfg_yandex_hq;
 
+class YandexFileWrapper : public file_dynamicinfo {
+public:
+    YandexFileWrapper(file::ptr underlying, const std::string& title, const std::string& artist, const std::string& album, double duration)
+        : m_file(underlying), m_title(title), m_artist(artist), m_album(album), m_duration(duration) {}
+
+    t_size read(void* p_buffer, t_size p_bytes, abort_callback& p_abort) override { return m_file->read(p_buffer, p_bytes, p_abort); }
+    void write(const void* p_buffer, t_size p_bytes, abort_callback& p_abort) override { m_file->write(p_buffer, p_bytes, p_abort); }
+    t_filesize get_size(abort_callback& p_abort) override { return m_file->get_size(p_abort); }
+    t_filesize get_position(abort_callback& p_abort) override { return m_file->get_position(p_abort); }
+    void resize(t_filesize p_size, abort_callback& p_abort) override { m_file->resize(p_size, p_abort); }
+    void seek(t_filesize p_position, abort_callback& p_abort) override { m_file->seek(p_position, p_abort); }
+    bool can_seek() override { return m_file->can_seek(); }
+    bool get_content_type(pfc::string_base& p_out) override { return m_file->get_content_type(p_out); }
+    void reopen(abort_callback& p_abort) override { m_file->reopen(p_abort); }
+    bool is_remote() override { return m_file->is_remote(); }
+    t_filestats2 get_stats2(uint32_t s2flags, abort_callback& p_abort) override { return m_file->get_stats2(s2flags, p_abort); }
+
+    bool get_static_info(file_info& p_out) override {
+        if (!m_title.empty()) p_out.meta_set("TITLE", m_title.c_str());
+        if (!m_artist.empty()) p_out.meta_set("ARTIST", m_artist.c_str());
+        if (!m_album.empty()) p_out.meta_set("ALBUM", m_album.c_str());
+        if (m_duration > 0) p_out.set_length(m_duration);
+        return true;
+    }
+
+    bool is_dynamic_info_enabled() override { return false; }
+    bool get_dynamic_info(file_info& p_out) override { return false; }
+
+private:
+    file::ptr m_file;
+    std::string m_title;
+    std::string m_artist;
+    std::string m_album;
+    double m_duration;
+};
+
 class yandex_filesystem : public filesystem {
 public:
     bool get_canonical_path(const char * path, pfc::string_base & out) override {
@@ -47,12 +83,32 @@ public:
 
         std::string path_str = p_path;
         if (path_str.find("yandex://track/") != 0) throw exception_io_not_found();
+        std::string id_str = path_str.substr(15);
 
-        std::string track_id = path_str.substr(15);
-        std::wstring wpath = pfc::stringcvt::string_wide_from_utf8(("/tracks/" + track_id + "/download-info").c_str()).get_ptr();
-        std::wstring wtoken = pfc::stringcvt::string_wide_from_utf8(cfg_yandex_token.get_ptr()).get_ptr();
+        std::string wtoken = cfg_yandex_token.get_ptr();
 
-        std::string info_resp = YandexAPI::HttpRequest(L"api.music.yandex.net", wpath, wtoken);
+        std::string m_title, m_artist, m_album;
+        double m_duration = 0;
+        try {
+            std::string track_info_json = YandexAPI::HttpRequest(L"api.music.yandex.net", pfc::stringcvt::string_wide_from_utf8(("/tracks/" + id_str).c_str()).get_ptr(), wtoken);
+            auto track_j = nlohmann::json::parse(track_info_json);
+            if (track_j.contains("result") && track_j["result"].is_array() && track_j["result"].size() > 0) {
+                auto& res = track_j["result"][0];
+                if (res.contains("title") && res["title"].is_string()) m_title = res["title"].get<std::string>();
+                if (res.contains("artists") && res["artists"].is_array() && res["artists"].size() > 0) {
+                    if (res["artists"][0].contains("name") && res["artists"][0]["name"].is_string()) m_artist = res["artists"][0]["name"].get<std::string>();
+                }
+                if (res.contains("albums") && res["albums"].is_array() && res["albums"].size() > 0) {
+                    if (res["albums"][0].contains("title") && res["albums"][0]["title"].is_string()) m_album = res["albums"][0]["title"].get<std::string>();
+                }
+                if (res.contains("durationMs") && res["durationMs"].is_number()) m_duration = res["durationMs"].get<int>() / 1000.0;
+            }
+        } catch (...) {}
+
+        std::wstring wpath = pfc::stringcvt::string_wide_from_utf8(("/tracks/" + id_str + "/download-info").c_str()).get_ptr();
+        std::wstring wtoken_wide = pfc::stringcvt::string_wide_from_utf8(wtoken.c_str()).get_ptr();
+
+        std::string info_resp = YandexAPI::HttpRequest(L"api.music.yandex.net", wpath, wtoken_wide);
         if (info_resp.empty()) throw exception_io_not_found();
 
         auto j = nlohmann::json::parse(info_resp);
@@ -73,13 +129,12 @@ public:
                 break;
             }
             if (codec == "mp3") {
-                if (want_hq && bitrate == 320) {
-                    download_url = stream["downloadInfoUrl"].get<std::string>();
-                    break;
-                }
                 if (bitrate > max_bitrate) {
                     max_bitrate = bitrate;
-                    download_url = stream["downloadInfoUrl"].get<std::string>();
+                    if (final_codec != "flac") {
+                        download_url = stream["downloadInfoUrl"].get<std::string>();
+                        final_codec = "mp3";
+                    }
                 }
             }
         }
@@ -118,6 +173,9 @@ public:
         std::string direct_url = "https://" + host + "/get-mp3/" + std::string(hex_buf) + "/" + ts + path;
 
         filesystem::g_open(p_out, direct_url.c_str(), p_mode, p_abort);
+
+        // Wrap the HTTP stream to provide metadata
+        p_out = new service_impl_t<YandexFileWrapper>(p_out, m_title, m_artist, m_album, m_duration);
     }
     
     std::string extract_tag(const std::string& xml, const std::string& tag) {
