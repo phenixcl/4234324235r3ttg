@@ -21,7 +21,7 @@ public:
     bool get_content_type(pfc::string_base& p_out) override { return m_file->get_content_type(p_out); }
     void reopen(abort_callback& p_abort) override { m_file->reopen(p_abort); }
     bool is_remote() override { return m_file->is_remote(); }
-    t_filestats2 get_stats2(uint32_t s2flags, abort_callback& p_abort) override { return m_file->get_stats2(s2flags, p_abort); }
+    t_filestats get_stats(abort_callback& p_abort) override { return m_file->get_stats(p_abort); }
 
     bool get_static_info(file_info& p_out) override {
         if (!m_title.empty()) p_out.meta_set("TITLE", m_title.c_str());
@@ -86,11 +86,12 @@ public:
         std::string id_str = path_str.substr(15);
 
         std::string wtoken = cfg_yandex_token.get_ptr();
+        std::wstring wtoken_wide = pfc::stringcvt::string_wide_from_utf8(wtoken.c_str()).get_ptr();
 
         std::string m_title, m_artist, m_album;
         double m_duration = 0;
         try {
-            std::string track_info_json = YandexAPI::HttpRequest(L"api.music.yandex.net", pfc::stringcvt::string_wide_from_utf8(("/tracks/" + id_str).c_str()).get_ptr(), wtoken);
+            std::string track_info_json = YandexAPI::HttpRequest(L"api.music.yandex.net", pfc::stringcvt::string_wide_from_utf8(("/tracks/" + id_str).c_str()).get_ptr(), wtoken_wide);
             auto track_j = nlohmann::json::parse(track_info_json);
             if (track_j.contains("result") && track_j["result"].is_array() && track_j["result"].size() > 0) {
                 auto& res = track_j["result"][0];
@@ -106,7 +107,6 @@ public:
         } catch (...) {}
 
         std::wstring wpath = pfc::stringcvt::string_wide_from_utf8(("/tracks/" + id_str + "/download-info").c_str()).get_ptr();
-        std::wstring wtoken_wide = pfc::stringcvt::string_wide_from_utf8(wtoken.c_str()).get_ptr();
 
         std::string info_resp = YandexAPI::HttpRequest(L"api.music.yandex.net", wpath, wtoken_wide);
         if (info_resp.empty()) throw exception_io_not_found();
@@ -149,7 +149,7 @@ public:
 
         std::wstring wxmlhost = pfc::stringcvt::string_wide_from_utf8(req_host.c_str()).get_ptr();
         std::wstring wxmlpath = pfc::stringcvt::string_wide_from_utf8(req_path.c_str()).get_ptr();
-        std::string xml_resp = YandexAPI::HttpRequest(wxmlhost, wxmlpath, wtoken);
+        std::string xml_resp = YandexAPI::HttpRequest(wxmlhost, wxmlpath, wtoken_wide);
 
         std::string host = extract_tag(xml_resp, "host");
         std::string path = extract_tag(xml_resp, "path");
