@@ -44,10 +44,10 @@ public:
     bool supports_content_types() override { return false; }
 
     void open(service_ptr_t<file> & p_out, const char * p_path, t_open_mode p_mode, abort_callback & p_abort) override {
-        // Return nothing – the input handler opens the stream itself.
-        // We must not throw exception_io_unsupported_format here because
-        // that blocks the entire playback pipeline.
-        throw exception_io_not_found();
+        // Return a dummy empty in-memory file so foobar2000 does not abort
+        // the playback pipeline. The actual audio stream is opened by our
+        // input handler (yandex_input) which ignores the file hint.
+        file::g_open_tempmem(p_out, p_abort);
     }
 };
 
