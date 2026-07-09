@@ -34,14 +34,21 @@ jobs:
           # Инжектим stdafx.h для поддержки PCH студии
           $main_code = Get-Content main.cpp -Raw
           "#include `"stdafx.h`"`r`n" + $main_code | Set-Content C:\foobar2000-sdk\foobar2000\foo_sample\main.cpp
+          
+          $ui_code = Get-Content yandex_ui.cpp -Raw
+          "#include `"stdafx.h`"`r`n" + $ui_code | Set-Content C:\foobar2000-sdk\foobar2000\foo_sample\yandex_ui.cpp
+          
           Copy-Item yandex_api.hpp C:\foobar2000-sdk\foobar2000\foo_sample\yandex_api.hpp -Force
+          Copy-Item foo_sample.rc C:\foobar2000-sdk\foobar2000\foo_sample\foo_sample.rc -Force
+          Copy-Item resource.h C:\foobar2000-sdk\foobar2000\foo_sample\resource.h -Force
           
           # ФИКС БАГА SDK: заставляем линкер игнорировать дубликаты символов (pfc::crashHook)
+          # ДОБАВЛЯЕМ yandex_ui.cpp в проект
           $projPath = "C:\foobar2000-sdk\foobar2000\foo_sample\foo_sample.vcxproj"
           $proj = Get-Content $projPath -Raw
           $proj = $proj -replace '<Link>', '<Link><AdditionalOptions>/FORCE:MULTIPLE %(AdditionalOptions)</AdditionalOptions>'
-          $proj | Set-Content $projPath
-          
+          $proj = $proj -replace '<ClCompile Include="main.cpp" />', '<ClCompile Include="main.cpp" /><ClCompile Include="yandex_ui.cpp" />'
+          $proj | Set-Content $projPath          
           # Собираем
           cd C:\foobar2000-sdk\foobar2000\foo_sample
           msbuild foo_sample.vcxproj /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v145 /p:WindowsTargetPlatformVersion=10.0 /p:UseEnv=true
