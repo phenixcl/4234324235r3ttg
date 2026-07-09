@@ -6,7 +6,7 @@
 extern cfg_string cfg_yandex_token;
 extern cfg_bool cfg_yandex_hq;
 
-class yandex_filesystem : public filesystem_v2 {
+class yandex_filesystem : public filesystem {
 public:
     bool get_canonical_path(const char * path, pfc::string_base & out) override {
         out = path;
@@ -27,26 +27,12 @@ public:
     bool is_remote(const char * p_src) override { return true; }
     bool relative_path_create(const char * file_path, const char * playlist_path, pfc::string_base & out) override { return false; }
     bool relative_path_parse(const char * relative_path, const char * playlist_path, pfc::string_base & out) override { return false; }
-    void stat(const char * p_path, t_filestats & p_stats, bool & p_is_writeable, abort_callback & p_abort) override {
+    void get_stats(const char * p_path, t_filestats & p_stats, bool & p_is_writeable, abort_callback & p_abort) override {
         p_stats.m_size = filesize_invalid;
         p_stats.m_timestamp = filetimestamp_invalid;
         p_is_writeable = false;
     }
-    bool extract_filename_ext(const char * path, pfc::string_base & out) override { return false; }
-    bool extract_folder_path(const char * path, pfc::string_base & out) override { return false; }
-
-    std::string extract_tag(const std::string& xml, const std::string& tag) {
-        std::string start_tag = "<" + tag + ">";
-        std::string end_tag = "</" + tag + ">";
-        size_t start = xml.find(start_tag);
-        if (start == std::string::npos) return "";
-        start += start_tag.length();
-        size_t end = xml.find(end_tag, start);
-        if (end == std::string::npos) return "";
-        return xml.substr(start, end - start);
-    }
-
-    void open_v2(service_ptr_t<file> & p_out, const char * p_path, t_open_mode p_mode, abort_callback & p_abort, request_e p_request) override {
+    void open(service_ptr_t<file> & p_out, const char * p_path, t_open_mode p_mode, abort_callback & p_abort) override {
         if (p_mode != open_mode_read) throw exception_io_denied();
 
         std::string path_str = p_path;
@@ -120,8 +106,15 @@ public:
         filesystem::g_open(p_out, direct_url.c_str(), p_mode, p_abort);
     }
     
-    void open(service_ptr_t<file> & p_out, const char * p_path, t_open_mode p_mode, abort_callback & p_abort) override {
-        open_v2(p_out, p_path, p_mode, p_abort, request_default);
+    std::string extract_tag(const std::string& xml, const std::string& tag) {
+        std::string start_tag = "<" + tag + ">";
+        std::string end_tag = "</" + tag + ">";
+        size_t start = xml.find(start_tag);
+        if (start == std::string::npos) return "";
+        start += start_tag.length();
+        size_t end = xml.find(end_tag, start);
+        if (end == std::string::npos) return "";
+        return xml.substr(start, end - start);
     }
 };
 
