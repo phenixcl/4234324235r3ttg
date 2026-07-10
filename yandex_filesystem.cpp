@@ -27,12 +27,12 @@ static std::string url_encode(const std::string &value) {
 
 static std::string ym_hmac_sha256_base64(const std::string& key, const std::string& data) {
     BCRYPT_ALG_HANDLE hAlg = NULL;
-    if (!BCRYPT_SUCCESS(BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_SHA256_ALGORITHM, NULL, BCRYPT_ALG_HANDLE_HMAC_FLAG))) return "";
+    if (BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_SHA256_ALGORITHM, NULL, BCRYPT_ALG_HANDLE_HMAC_FLAG) < 0) return "";
     BCRYPT_HASH_HANDLE hHash = NULL;
-    if (!BCRYPT_SUCCESS(BCryptCreateHash(hAlg, &hHash, NULL, 0, (PUCHAR)key.data(), (ULONG)key.size(), 0))) { BCryptCloseAlgorithmProvider(hAlg, 0); return ""; }
-    if (!BCRYPT_SUCCESS(BCryptHashData(hHash, (PUCHAR)data.data(), (ULONG)data.size(), 0))) { BCryptDestroyHash(hHash); BCryptCloseAlgorithmProvider(hAlg, 0); return ""; }
+    if (BCryptCreateHash(hAlg, &hHash, NULL, 0, (PUCHAR)key.data(), (ULONG)key.size(), 0) < 0) { BCryptCloseAlgorithmProvider(hAlg, 0); return ""; }
+    if (BCryptHashData(hHash, (PUCHAR)data.data(), (ULONG)data.size(), 0) < 0) { BCryptDestroyHash(hHash); BCryptCloseAlgorithmProvider(hAlg, 0); return ""; }
     UCHAR hash[32];
-    if (!BCRYPT_SUCCESS(BCryptFinishHash(hHash, hash, sizeof(hash), 0))) { BCryptDestroyHash(hHash); BCryptCloseAlgorithmProvider(hAlg, 0); return ""; }
+    if (BCryptFinishHash(hHash, hash, sizeof(hash), 0) < 0) { BCryptDestroyHash(hHash); BCryptCloseAlgorithmProvider(hAlg, 0); return ""; }
     BCryptDestroyHash(hHash);
     BCryptCloseAlgorithmProvider(hAlg, 0);
     pfc::string8 b64;
