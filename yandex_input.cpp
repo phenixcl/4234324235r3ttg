@@ -166,6 +166,18 @@ public:
                             auto& di = j["result"]["downloadInfo"];
                             if (di.contains("urls") && di["urls"].is_array() && di["urls"].size() > 0) {
                                 direct_url = di["urls"][0].get<std::string>();
+                                
+                                // Append fragment to force foobar2000 to use the correct decoder and bypass sniffing
+                                std::string res_codec = di["codec"].get<std::string>();
+                                if (res_codec == "flac-mp4" || res_codec == "aac-mp4" || res_codec == "he-aac-mp4") {
+                                    direct_url += "#.m4a";
+                                } else if (res_codec == "mp3") {
+                                    direct_url += "#.mp3";
+                                } else if (res_codec == "flac") {
+                                    direct_url += "#.flac";
+                                }
+
+                                console::printf("Yandex Music: direct_url (HQ) = %s", direct_url.c_str());
                             } else if (di.contains("url") && di["url"].is_string()) {
                                 direct_url = di["url"].get<std::string>();
                             }
@@ -240,8 +252,8 @@ public:
                 for (int i = 0; i < 16; ++i) sprintf(hex_buf + i * 2, "%02x", (unsigned char)hash_res.m_data[i]);
                 hex_buf[32] = 0;
 
-                direct_url = "https://" + host + "/get-mp3/" + std::string(hex_buf) + "/" + ts + path;
-                console::printf("Yandex Music: direct_url = %s", direct_url.c_str());
+                direct_url = "https://" + host + "/get-mp3/" + std::string(hex_buf) + "/" + ts + path + "#.mp3";
+                console::printf("Yandex Music: direct_url (MP3 fallback) = %s", direct_url.c_str());
             } catch (const std::exception& e) {
                 console::printf("Yandex Music: Exception while parsing MP3 fallback: %s", e.what());
                 throw exception_io_not_found();
