@@ -63,6 +63,10 @@ public:
     bool is_remote(const char * p_src) override { return true; }
     bool relative_path_create(const char * file_path, const char * playlist_path, pfc::string_base & out) override { return false; }
     bool relative_path_parse(const char * relative_path, const char * playlist_path, pfc::string_base & out) override { return false; }
+    void create_directory(const char * path, abort_callback & p_abort) override { throw exception_io_denied(); }
+    void list_directory(const char * p_path, directory_callback & p_out, abort_callback & p_abort) override { throw exception_io_denied(); }
+    bool supports_content_types() override { return false; }
+
     void get_stats(const char * p_path, t_filestats & p_stats, bool & p_is_writeable, abort_callback & p_abort) override {
         p_stats.m_size = filesize_invalid;
         p_stats.m_timestamp = filetimestamp_invalid;
