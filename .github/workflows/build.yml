@@ -44,9 +44,6 @@ jobs:
           $art_code = Get-Content yandex_album_art.cpp -Raw
           "#include `"stdafx.h`"`r`n" + $art_code | Set-Content C:\foobar2000-sdk\foobar2000\foo_sample\yandex_album_art.cpp
           
-          $input_code = Get-Content yandex_input.cpp -Raw
-          "#include `"stdafx.h`"`r`n" + $input_code | Set-Content C:\foobar2000-sdk\foobar2000\foo_sample\yandex_input.cpp
-          
           Copy-Item yandex_api.hpp C:\foobar2000-sdk\foobar2000\foo_sample\yandex_api.hpp -Force
           Copy-Item foo_sample.rc C:\foobar2000-sdk\foobar2000\foo_sample\foo_sample.rc -Force
           Copy-Item resource.h C:\foobar2000-sdk\foobar2000\foo_sample\resource.h -Force
@@ -56,7 +53,7 @@ jobs:
           $projPath = "C:\foobar2000-sdk\foobar2000\foo_sample\foo_sample.vcxproj"
           $proj = Get-Content $projPath -Raw
           $proj = $proj -replace '<Link>', '<Link><AdditionalOptions>/FORCE:MULTIPLE %(AdditionalOptions)</AdditionalOptions>'
-          $proj = $proj -replace '<ClCompile Include="main.cpp" />', '<ClCompile Include="main.cpp" /><ClCompile Include="yandex_ui.cpp" /><ClCompile Include="yandex_filesystem.cpp" /><ClCompile Include="yandex_album_art.cpp" /><ClCompile Include="yandex_input.cpp" />'
+          $proj = $proj -replace '<ClCompile Include="main.cpp" />', '<ClCompile Include="main.cpp" /><ClCompile Include="yandex_ui.cpp" /><ClCompile Include="yandex_filesystem.cpp" /><ClCompile Include="yandex_album_art.cpp" />'
           $proj | Set-Content $projPath          
           # Собираем
           cd C:\foobar2000-sdk\foobar2000\foo_sample
