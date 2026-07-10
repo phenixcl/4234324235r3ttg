@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <sstream>
 #include <bcrypt.h>
+#pragma comment(lib, "bcrypt.lib")
 
 extern advconfig_string_factory cfg_yandex_token;
 extern cfg_bool cfg_yandex_hq;
@@ -181,3 +182,5 @@ public:
 };
 
 static service_factory_single_t<yandex_filesystem> g_yandex_filesystem_factory;
+
+void force_link_yandex_filesystem() {}
