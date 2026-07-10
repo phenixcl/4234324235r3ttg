@@ -44,10 +44,11 @@ public:
     bool supports_content_types() override { return false; }
 
     void open(service_ptr_t<file> & p_out, const char * p_path, t_open_mode p_mode, abort_callback & p_abort) override {
-        // Return a dummy empty in-memory file so foobar2000 does not abort
-        // the playback pipeline. The actual audio stream is opened by our
-        // input handler (yandex_input) which ignores the file hint.
-        filesystem::g_open_tempmem(p_out, p_abort);
+        // We must throw exception_io_unsupported_format so that default decoders (like MP3)
+        // fail gracefully when they try to open "yandex://...mp3".
+        // This forces foobar2000 to fall back to the next input handler (our yandex_input),
+        // which will handle the URL natively without using yandex_filesystem.
+        throw exception_io_unsupported_format();
     }
 };
 
