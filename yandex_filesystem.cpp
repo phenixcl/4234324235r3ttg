@@ -7,7 +7,7 @@
 #include <bcrypt.h>
 #pragma comment(lib, "bcrypt.lib")
 
-extern advconfig_string_factory cfg_yandex_token;
+extern cfg_string cfg_yandex_token;
 extern cfg_bool cfg_yandex_hq;
 
 static std::string url_encode(const std::string &value) {
@@ -167,10 +167,21 @@ public:
                 std::string host = ym_extract_tag(xml_resp, "host");
                 std::string path = ym_extract_tag(xml_resp, "path");
                 std::string s    = ym_extract_tag(xml_resp, "s");
+                std::string ts   = ym_extract_tag(xml_resp, "ts");
                 
                 if (host.empty() || path.empty() || s.empty()) throw exception_io_not_found();
 
-                direct_url = "https://" + host + "/get-mp3/" + s + path;
+                std::string sign_str = "XGRlBW9FXlekgbPrRHuAle" + path.substr(1) + s;
+                hasher_md5_state state;
+                auto hasher = hasher_md5::get();
+                hasher->initialize(state);
+                hasher->process(state, sign_str.c_str(), sign_str.length());
+                hasher_md5_result hash = hasher->get_result(state);
+                
+                char md5_hex[33];
+                for (int i = 0; i < 16; i++) snprintf(md5_hex + i * 2, 3, "%02x", hash.m_data[i]);
+                
+                direct_url = "https://" + host + "/get-mp3/" + std::string(md5_hex) + "/" + ts + path;
             } catch (...) {
                 throw exception_io_not_found();
             }
