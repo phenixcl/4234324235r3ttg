@@ -3,6 +3,8 @@
 #include "yandex_api.hpp"
 #include <time.h>
 #include <iomanip>
+#include <sstream>
+#include <bcrypt.h>
 
 extern cfg_string cfg_yandex_token;
 extern cfg_bool cfg_yandex_hq;
