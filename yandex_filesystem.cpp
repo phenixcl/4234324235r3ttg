@@ -176,4 +176,4 @@ public:
     }
 };
 
-static filesystem_factory_t<yandex_filesystem> g_yandex_filesystem_factory;
+static service_factory_single_t<yandex_filesystem> g_yandex_filesystem_factory;
