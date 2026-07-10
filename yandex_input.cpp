@@ -204,7 +204,7 @@ public:
 
             std::wstring wxmlhost(pfc::stringcvt::string_wide_from_utf8(req_host.c_str()).get_ptr());
             std::wstring wxmlpath(pfc::stringcvt::string_wide_from_utf8(req_path.c_str()).get_ptr());
-            std::string xml_resp = YandexAPI::HttpRequest(wxmlhost.c_str(), wxmlpath.c_str(), wtoken_wide);
+            std::string xml_resp = YandexAPI::HttpRequest(wxmlhost.c_str(), wxmlpath.c_str(), L"");
 
             std::string host = ym_extract_tag(xml_resp, "host");
             std::string path = ym_extract_tag(xml_resp, "path");
