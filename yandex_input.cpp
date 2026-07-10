@@ -139,6 +139,8 @@ public:
         bool want_hq = cfg_yandex_hq.get();
         std::string direct_url;
 
+        console::printf("Yandex Music: Opening track %s (HQ: %d)", id_str.c_str(), want_hq);
+
         if (want_hq) {
             std::string ts = std::to_string((long long)time(NULL));
             // Codecs for sign computation (concatenated without commas)
@@ -177,59 +179,86 @@ public:
         if (direct_url.empty()) {
             std::wstring wpath(pfc::stringcvt::string_wide_from_utf8(("/tracks/" + id_str + "/download-info").c_str()).get_ptr());
             std::string info_resp = YandexAPI::HttpRequest(L"api.music.yandex.net", wpath.c_str(), wtoken_wide);
-            if (info_resp.empty()) throw exception_io_not_found();
-
-            auto j = nlohmann::json::parse(info_resp);
-            if (!j.contains("result") || !j["result"].is_array()) throw exception_io_not_found();
-
-            std::string download_url;
-            int max_bitrate = 0;
-
-            for (auto& stream : j["result"]) {
-                std::string codec = stream["codec"].get<std::string>();
-                int bitrate = stream["bitrateInKbps"].get<int>();
-                if (codec == "mp3" && bitrate > max_bitrate) {
-                    max_bitrate = bitrate;
-                    download_url = stream["downloadInfoUrl"].get<std::string>();
-                }
+            console::printf("Yandex Music: download-info response (length: %zu)", info_resp.length());
+            if (info_resp.empty()) {
+                console::printf("Yandex Music: Empty download-info response!");
+                throw exception_io_not_found();
             }
-            if (download_url.empty()) throw exception_io_not_found();
 
-            // Resolve XML → direct stream URL
-            if (download_url.find("https://") != 0) throw exception_io_not_found();
-            size_t host_end = download_url.find("/", 8);
-            if (host_end == std::string::npos) throw exception_io_not_found();
-            std::string req_host = download_url.substr(8, host_end - 8);
-            std::string req_path = download_url.substr(host_end);
+            try {
+                auto j = nlohmann::json::parse(info_resp);
+                if (!j.contains("result") || !j["result"].is_array()) {
+                    console::printf("Yandex Music: JSON result missing or not array!");
+                    throw exception_io_not_found();
+                }
 
-            std::wstring wxmlhost(pfc::stringcvt::string_wide_from_utf8(req_host.c_str()).get_ptr());
-            std::wstring wxmlpath(pfc::stringcvt::string_wide_from_utf8(req_path.c_str()).get_ptr());
-            std::string xml_resp = YandexAPI::HttpRequest(wxmlhost.c_str(), wxmlpath.c_str(), L"");
+                std::string download_url;
+                int max_bitrate = 0;
 
-            std::string host = ym_extract_tag(xml_resp, "host");
-            std::string path = ym_extract_tag(xml_resp, "path");
-            std::string ts   = ym_extract_tag(xml_resp, "ts");
-            std::string s    = ym_extract_tag(xml_resp, "s");
-            if (host.empty() || path.empty() || ts.empty() || s.empty()) throw exception_io_not_found();
+                for (auto& stream : j["result"]) {
+                    std::string codec = stream["codec"].get<std::string>();
+                    int bitrate = stream["bitrateInKbps"].get<int>();
+                    if (codec == "mp3" && bitrate > max_bitrate) {
+                        max_bitrate = bitrate;
+                        download_url = stream["downloadInfoUrl"].get<std::string>();
+                    }
+                }
+                
+                console::printf("Yandex Music: MP3 download_url = %s", download_url.c_str());
+                if (download_url.empty()) throw exception_io_not_found();
 
-            std::string sign_salt = "XGRlBW9FXlekgbPrRHuAle";
-            std::string to_hash = sign_salt + path.substr(1) + s;
+                // Resolve XML → direct stream URL
+                if (download_url.find("https://") != 0) throw exception_io_not_found();
+                size_t host_end = download_url.find("/", 8);
+                if (host_end == std::string::npos) throw exception_io_not_found();
+                std::string req_host = download_url.substr(8, host_end - 8);
+                std::string req_path = download_url.substr(host_end);
 
-            static_api_ptr_t<hasher_md5> hasher;
-            hasher_md5_result hash_res = hasher->process_single_string(to_hash.c_str());
+                std::wstring wxmlhost(pfc::stringcvt::string_wide_from_utf8(req_host.c_str()).get_ptr());
+                std::wstring wxmlpath(pfc::stringcvt::string_wide_from_utf8(req_path.c_str()).get_ptr());
+                std::string xml_resp = YandexAPI::HttpRequest(wxmlhost.c_str(), wxmlpath.c_str(), L"");
 
-            char hex_buf[33];
-            for (int i = 0; i < 16; ++i) sprintf(hex_buf + i * 2, "%02x", (unsigned char)hash_res.m_data[i]);
-            hex_buf[32] = 0;
+                console::printf("Yandex Music: XML response: %s", xml_resp.c_str());
 
-            direct_url = "https://" + host + "/get-mp3/" + std::string(hex_buf) + "/" + ts + path;
+                std::string host = ym_extract_tag(xml_resp, "host");
+                std::string path = ym_extract_tag(xml_resp, "path");
+                std::string ts   = ym_extract_tag(xml_resp, "ts");
+                std::string s    = ym_extract_tag(xml_resp, "s");
+                
+                if (host.empty() || path.empty() || ts.empty() || s.empty()) {
+                    console::printf("Yandex Music: Failed to extract tags from XML!");
+                    throw exception_io_not_found();
+                }
+
+                std::string sign_salt = "XGRlBW9FXlekgbPrRHuAle";
+                std::string to_hash = sign_salt + path.substr(1) + s;
+
+                static_api_ptr_t<hasher_md5> hasher;
+                hasher_md5_result hash_res = hasher->process_single_string(to_hash.c_str());
+
+                char hex_buf[33];
+                for (int i = 0; i < 16; ++i) sprintf(hex_buf + i * 2, "%02x", (unsigned char)hash_res.m_data[i]);
+                hex_buf[32] = 0;
+
+                direct_url = "https://" + host + "/get-mp3/" + std::string(hex_buf) + "/" + ts + path;
+                console::printf("Yandex Music: direct_url = %s", direct_url.c_str());
+            } catch (const std::exception& e) {
+                console::printf("Yandex Music: Exception while parsing MP3 fallback: %s", e.what());
+                throw exception_io_not_found();
+            }
         }
 
         // --- 4. Open the inner decoder for the real HTTP(S) URL ---
         if (p_reason == input_open_info_read) {
             // We already have metadata from the API – no need to open a decoder
         } else {
-            input_entry::g_open_for_decoding(m_decoder, nullptr, direct_url.c_str(), p_abort);
+            console::printf("Yandex Music: Opening inner decoder for URL: %s", direct_url.c_str());
+            try {
+                input_entry::g_open_for_decoding(m_decoder, nullptr, direct_url.c_str(), p_abort);
+            } catch (const std::exception& e) {
+                console::printf("Yandex Music: g_open_for_decoding failed with exception: %s", e.what());
+                throw;
+            }
         }
     }
 
