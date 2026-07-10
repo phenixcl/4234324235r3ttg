@@ -6,7 +6,7 @@
 #include <sstream>
 #include <bcrypt.h>
 
-extern cfg_string cfg_yandex_token;
+extern advconfig_string_factory cfg_yandex_token;
 extern cfg_bool cfg_yandex_hq;
 
 static std::string url_encode(const std::string &value) {
@@ -81,7 +81,9 @@ public:
         size_t dot_pos = id_str.find('.');
         if (dot_pos != std::string::npos) id_str = id_str.substr(0, dot_pos);
 
-        std::string wtoken = cfg_yandex_token.get_ptr();
+        pfc::string8 wtoken_str;
+        cfg_yandex_token.get(wtoken_str);
+        std::string wtoken = wtoken_str.c_str();
         std::wstring wtoken_wide(pfc::stringcvt::string_wide_from_utf8(wtoken.c_str()).get_ptr());
 
         bool want_hq = cfg_yandex_hq.get();
