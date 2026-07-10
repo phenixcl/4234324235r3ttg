@@ -167,6 +167,15 @@ public:
                             if (di.contains("urls") && di["urls"].is_array() && di["urls"].size() > 0) {
                                 direct_url = di["urls"][0].get<std::string>();
                                 
+                                // WinINet truncates URLs at commas, so we URL-encode them.
+                                std::string replaced_url = direct_url;
+                                size_t pos = 0;
+                                while((pos = replaced_url.find(",", pos)) != std::string::npos) {
+                                    replaced_url.replace(pos, 1, "%2C");
+                                    pos += 3;
+                                }
+                                direct_url = replaced_url;
+
                                 // Append fragment to force foobar2000 to use the correct decoder and bypass sniffing
                                 std::string res_codec = di["codec"].get<std::string>();
                                 if (res_codec == "flac-mp4" || res_codec == "aac-mp4" || res_codec == "he-aac-mp4") {
@@ -237,22 +246,13 @@ public:
                 std::string ts   = ym_extract_tag(xml_resp, "ts");
                 std::string s    = ym_extract_tag(xml_resp, "s");
                 
-                if (host.empty() || path.empty() || ts.empty() || s.empty()) {
+                if (host.empty() || path.empty() || s.empty()) {
                     console::printf("Yandex Music: Failed to extract tags from XML!");
                     throw exception_io_not_found();
                 }
 
-                std::string sign_salt = "XGRlBW9FXlekgbPrRHuAle";
-                std::string to_hash = sign_salt + path.substr(1) + s;
-
-                static_api_ptr_t<hasher_md5> hasher;
-                hasher_md5_result hash_res = hasher->process_single_string(to_hash.c_str());
-
-                char hex_buf[33];
-                for (int i = 0; i < 16; ++i) sprintf(hex_buf + i * 2, "%02x", (unsigned char)hash_res.m_data[i]);
-                hex_buf[32] = 0;
-
-                direct_url = "https://" + host + "/get-mp3/" + std::string(hex_buf) + "/" + ts + path + "#.mp3";
+                // Restore original working MP3 URL construction logic
+                direct_url = "https://" + host + "/get-mp3/" + s + path + "#.mp3";
                 console::printf("Yandex Music: direct_url (MP3 fallback) = %s", direct_url.c_str());
             } catch (const std::exception& e) {
                 console::printf("Yandex Music: Exception while parsing MP3 fallback: %s", e.what());
