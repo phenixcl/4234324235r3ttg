@@ -53,7 +53,7 @@ static std::string ym_extract_tag(const std::string& xml, const std::string& tag
     return xml.substr(start, end - start);
 }
 
-class yandex_filesystem : public filesystem_v2 {
+class yandex_filesystem : public filesystem {
 public:
     bool get_canonical_path(const char * path, pfc::string_base & out) override { out = path; return true; }
     bool is_our_path(const char * path) override { return strncmp(path, "yandex://", 9) == 0; }
@@ -63,15 +63,13 @@ public:
     bool is_remote(const char * p_src) override { return true; }
     bool relative_path_create(const char * file_path, const char * playlist_path, pfc::string_base & out) override { return false; }
     bool relative_path_parse(const char * relative_path, const char * playlist_path, pfc::string_base & out) override { return false; }
-    void stat(const char * p_path, t_filestats & p_stats, bool & p_is_writeable, abort_callback & p_abort) override {
+    void get_stats(const char * p_path, t_filestats & p_stats, bool & p_is_writeable, abort_callback & p_abort) override {
         p_stats.m_size = filesize_invalid;
         p_stats.m_timestamp = filetimestamp_invalid;
         p_is_writeable = false;
     }
-    bool extract_filename_ext(const char * path, pfc::string_base & out) override { return false; }
-    bool extract_folder_path(const char * path, pfc::string_base & out) override { return false; }
 
-    void open_v2(service_ptr_t<file> & p_out, const char * p_path, t_open_mode p_mode, abort_callback & p_abort, request_e p_request) override {
+    void open(service_ptr_t<file> & p_out, const char * p_path, t_open_mode p_mode, abort_callback & p_abort) override {
         if (p_mode != open_mode_read) throw exception_io_denied();
 
         std::string path_str = p_path;
@@ -175,10 +173,6 @@ public:
 
         if (direct_url.empty()) throw exception_io_not_found();
         filesystem::g_open(p_out, direct_url.c_str(), p_mode, p_abort);
-    }
-    
-    void open(service_ptr_t<file> & p_out, const char * p_path, t_open_mode p_mode, abort_callback & p_abort) override {
-        open_v2(p_out, p_path, p_mode, p_abort, request_default);
     }
 };
 
