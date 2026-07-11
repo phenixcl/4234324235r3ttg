@@ -1,4 +1,4 @@
-﻿#include "foobar2000/SDK/foobar2000.h"
+#include "foobar2000/SDK/foobar2000.h"
 #include <map>
 #include <mutex>
 
@@ -382,7 +382,6 @@ public:
 };
 
 static input_singletrack_factory_t<yandex_input> g_yandex_input_factory;
-
 
 
 
