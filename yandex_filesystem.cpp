@@ -23,7 +23,9 @@ public:
     void remove(const char * p_path, abort_callback & p_abort) override { throw exception_io_denied(); }
     void move(const char * p_src, const char * p_dst, abort_callback & p_abort) override { throw exception_io_denied(); }
     bool is_remote(const char * p_src) override { return true; }
-    void create_directory(const char * p_path, abort_callback & p_abort) override { throw exception_io_denied(); }
+    
+    bool relative_path_create(const char * file_path, const char * playlist_path, pfc::string_base & out) override { return false; }
+    bool relative_path_parse(const char * relative_path, const char * playlist_path, pfc::string_base & out) override { return false; }
     
     void get_stats(const char * p_path, t_filestats & p_stats, bool & p_is_writeable, abort_callback & p_abort) override {
         p_stats.m_size = filesize_invalid;
@@ -31,8 +33,14 @@ public:
         p_is_writeable = false;
     }
 
-    void abort_promise(file::ptr & p_out, abort_callback & p_abort) override {}
-    
+    void create_directory(const char * p_path, abort_callback & p_abort) override {
+        throw exception_io_denied();
+    }
+
+    void list_directory(const char * p_path, directory_callback & p_callback, abort_callback & p_abort) override {
+        throw exception_io_not_found();
+    }
+
     bool supports_content_types() override { return false; }
 
     void open(service_ptr_t<file> & p_out, const char * p_path, t_open_mode p_mode, abort_callback & p_abort) override {
