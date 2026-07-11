@@ -44,11 +44,11 @@ public:
     bool supports_content_types() override { return false; }
 
     void open(service_ptr_t<file> & p_out, const char * p_path, t_open_mode p_mode, abort_callback & p_abort) override {
-        // We must throw exception_io_unsupported_format so that default decoders (like MP3)
-        // fail gracefully when they try to open "yandex://...mp3".
-        // This forces foobar2000 to fall back to the next input handler (our yandex_input),
-        // which will handle the URL natively without using yandex_filesystem.
-        throw exception_io_unsupported_format();
+        // Throw exception_io_no_handler_for_path so that default decoders (like MP3)
+        // silently ignore "yandex://...mp3" paths without causing a fatal playback error.
+        // This allows foobar2000 to continue iterating its input handlers until it reaches
+        // our native yandex_input which handles the path directly.
+        throw exception_io_no_handler_for_path();
     }
 };
 
