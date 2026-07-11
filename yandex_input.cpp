@@ -326,7 +326,6 @@ public:
     }
 
     t_filestats2 get_stats2(uint32_t f, abort_callback & a) {
-        if (m_decoder.is_valid()) return m_decoder->get_stats2(0, f, a);
         return t_filestats2::from_legacy(filestats_invalid);
     }
 
