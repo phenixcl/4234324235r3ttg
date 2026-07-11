@@ -315,7 +315,7 @@ public:
         if (direct_url.empty()) throw exception_io_not_found();
 
         try {
-            m_decoder = input_entry::g_open_for_decoding(nullptr, direct_url.c_str(), p_abort);
+            input_entry::g_open_for_decoding(m_decoder, nullptr, direct_url.c_str(), p_abort);
         } catch (...) {
             throw exception_io_not_found();
         }
