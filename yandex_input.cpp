@@ -218,65 +218,83 @@ public:
                 auto track_j = nlohmann::json::parse(track_info_json);
                 if (track_j.contains("result") && track_j["result"].is_array() && track_j["result"].size() > 0) {
                     auto& res = track_j["result"][0];
-                    if (res.contains("title") && res["title"].is_string())
-                        m_info.meta_set("TITLE", res["title"].get<std::string>().c_str());
-                    if (res.contains("artists") && res["artists"].is_array() && res["artists"].size() > 0) {
-                        std::string artists_str;
-                        std::string composers_str;
-                        for (auto& art : res["artists"]) {
-                            if (art.contains("name") && art["name"].is_string()) {
-                                std::string name = art["name"].get<std::string>();
-                                if (art.contains("composer") && art["composer"].is_boolean() && art["composer"].get<bool>()) {
-                                    if (!composers_str.empty()) composers_str += ", ";
-                                    composers_str += name;
-                                } else {
-                                    if (!artists_str.empty()) artists_str += ", ";
-                                    artists_str += name;
+                    try {
+                        if (res.contains("title") && res["title"].is_string())
+                            m_info.meta_set("TITLE", res["title"].get<std::string>().c_str());
+                    } catch(...) {}
+                    
+                    try {
+                        if (res.contains("artists") && res["artists"].is_array() && res["artists"].size() > 0) {
+                            std::string artists_str;
+                            std::string composers_str;
+                            for (auto& art : res["artists"]) {
+                                if (art.is_object() && art.contains("name") && art["name"].is_string()) {
+                                    std::string name = art["name"].get<std::string>();
+                                    if (art.contains("composer") && art["composer"].is_boolean() && art["composer"].get<bool>()) {
+                                        if (!composers_str.empty()) composers_str += ", ";
+                                        composers_str += name;
+                                    } else {
+                                        if (!artists_str.empty()) artists_str += ", ";
+                                        artists_str += name;
+                                    }
+                                }
+                            }
+                            if (!artists_str.empty()) m_info.meta_set("ARTIST", artists_str.c_str());
+                            if (!composers_str.empty()) m_info.meta_set("COMPOSER", composers_str.c_str());
+                        }
+                    } catch(...) {}
+                    
+                    try {
+                        if (res.contains("albums") && res["albums"].is_array() && res["albums"].size() > 0) {
+                            auto& alb = res["albums"][0];
+                            if (alb.is_object()) {
+                                if (alb.contains("title") && alb["title"].is_string())
+                                    m_info.meta_set("ALBUM", alb["title"].get<std::string>().c_str());
+                                if (alb.contains("year") && alb["year"].is_number())
+                                    m_info.meta_set("DATE", std::to_string(alb["year"].get<int>()).c_str());
+                                if (alb.contains("trackPosition") && alb["trackPosition"].is_object()) {
+                                    auto& tp = alb["trackPosition"];
+                                    if (tp.contains("index") && tp["index"].is_number())
+                                        m_info.meta_set("TRACKNUMBER", std::to_string(tp["index"].get<int>()).c_str());
+                                    if (tp.contains("volume") && tp["volume"].is_number())
+                                        m_info.meta_set("DISCNUMBER", std::to_string(tp["volume"].get<int>()).c_str());
+                                }
+                                if (alb.contains("trackCount") && alb["trackCount"].is_number())
+                                    m_info.meta_set("TOTALTRACKS", std::to_string(alb["trackCount"].get<int>()).c_str());
+                                if (alb.contains("genre") && alb["genre"].is_string())
+                                    m_info.meta_set("GENRE", alb["genre"].get<std::string>().c_str());
+                                if (alb.contains("labels") && alb["labels"].is_array() && alb["labels"].size() > 0) {
+                                    if (alb["labels"][0].is_object() && alb["labels"][0].contains("name") && alb["labels"][0]["name"].is_string())
+                                        m_info.meta_set("LABEL", alb["labels"][0]["name"].get<std::string>().c_str());
+                                }
+                                if (alb.contains("artists") && alb["artists"].is_array() && alb["artists"].size() > 0) {
+                                    std::string alb_artists_str;
+                                    for (auto& aart : alb["artists"]) {
+                                        if (aart.is_object() && aart.contains("name") && aart["name"].is_string()) {
+                                            if (!alb_artists_str.empty()) alb_artists_str += ", ";
+                                            alb_artists_str += aart["name"].get<std::string>();
+                                        }
+                                    }
+                                    if (!alb_artists_str.empty()) m_info.meta_set("ALBUM ARTIST", alb_artists_str.c_str());
                                 }
                             }
                         }
-                        if (!artists_str.empty()) m_info.meta_set("ARTIST", artists_str.c_str());
-                        if (!composers_str.empty()) m_info.meta_set("COMPOSER", composers_str.c_str());
-                    }
-                    if (res.contains("albums") && res["albums"].is_array() && res["albums"].size() > 0) {
-                        auto& alb = res["albums"][0];
-                        if (alb.contains("title") && alb["title"].is_string())
-                            m_info.meta_set("ALBUM", alb["title"].get<std::string>().c_str());
-                        if (alb.contains("year") && alb["year"].is_number())
-                            m_info.meta_set("DATE", std::to_string(alb["year"].get<int>()).c_str());
-                        if (alb.contains("trackPosition")) {
-                            auto& tp = alb["trackPosition"];
-                            if (tp.contains("index") && tp["index"].is_number())
-                                m_info.meta_set("TRACKNUMBER", std::to_string(tp["index"].get<int>()).c_str());
-                            if (tp.contains("volume") && tp["volume"].is_number())
-                                m_info.meta_set("DISCNUMBER", std::to_string(tp["volume"].get<int>()).c_str());
-                        }
-                        if (alb.contains("trackCount") && alb["trackCount"].is_number())
-                            m_info.meta_set("TOTALTRACKS", std::to_string(alb["trackCount"].get<int>()).c_str());
-                        if (alb.contains("genre") && alb["genre"].is_string())
-                            m_info.meta_set("GENRE", alb["genre"].get<std::string>().c_str());
-                        if (alb.contains("labels") && alb["labels"].is_array() && alb["labels"].size() > 0) {
-                            if (alb["labels"][0].contains("name") && alb["labels"][0]["name"].is_string())
-                                m_info.meta_set("LABEL", alb["labels"][0]["name"].get<std::string>().c_str());
-                        }
-                        if (alb.contains("artists") && alb["artists"].is_array() && alb["artists"].size() > 0) {
-                            std::string alb_artists_str;
-                            for (auto& aart : alb["artists"]) {
-                                if (aart.contains("name") && aart["name"].is_string()) {
-                                    if (!alb_artists_str.empty()) alb_artists_str += ", ";
-                                    alb_artists_str += aart["name"].get<std::string>();
-                                }
-                            }
-                            if (!alb_artists_str.empty()) m_info.meta_set("ALBUM ARTIST", alb_artists_str.c_str());
-                        }
-                    }
-                    if (res.contains("durationMs") && res["durationMs"].is_number())
-                        m_info.set_length(res["durationMs"].get<int>() / 1000.0);
+                    } catch(...) {}
+                    
+                    try {
+                        if (res.contains("durationMs") && res["durationMs"].is_number())
+                            m_info.set_length(res["durationMs"].get<int>() / 1000.0);
+                    } catch(...) {}
                 }
             } catch (...) {}
         }
+          
+          m_info.info_set("codec", "FLAC");
+          m_info.info_set("bitrate", "900");
+          m_info.info_set("samplerate", "44100");
+          m_info.info_set("channels", "2");
 
-        if (p_reason == input_open_info_write) throw exception_tagging_unsupported();
+          if (p_reason == input_open_info_write) throw exception_tagging_unsupported();
 
                 // --- 2 & 3. Resolve direct URL ---
         std::string direct_url = resolve_yandex_track_url(id_str, wtoken_wide);
@@ -307,7 +325,8 @@ public:
         }
     }
 
-    t_filestats2 get_stats2(uint32_t f, abort_callback & p_abort) {
+    t_filestats2 get_stats2(uint32_t f, abort_callback & a) {
+        if (m_decoder.is_valid()) return m_decoder->get_stats2(0, f, a);
         return t_filestats2::from_legacy(filestats_invalid);
     }
 
