@@ -291,7 +291,7 @@ public:
 
     void get_info(file_info & p_info, abort_callback & p_abort) {
         if (m_decoder.is_valid()) {
-            m_decoder->get_info(p_info, p_abort);
+            m_decoder->get_info(0, p_info, p_abort);
             for (t_size i = 0; i < m_info.meta_get_count(); ++i) {
                 const char* name = m_info.meta_enum_name(i);
                 p_info.meta_remove_field(name);
