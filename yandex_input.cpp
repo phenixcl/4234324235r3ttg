@@ -1,4 +1,9 @@
 #include "foobar2000/SDK/foobar2000.h"
+#include <map>
+#include <mutex>
+
+static std::map<std::string, file_info_impl> g_meta_cache;
+static std::mutex g_meta_cache_mutex;
 #include "yandex_api.hpp"
 #include <nlohmann/json.hpp>
 #include <string>
@@ -288,41 +293,36 @@ public:
                 }
             } catch (...) {}
         }
-          
           m_info.info_set("codec", "FLAC");
           m_info.info_set("bitrate", "900");
           m_info.info_set("samplerate", "44100");
           m_info.info_set("channels", "2");
 
+          {
+              std::lock_guard<std::mutex> lock(g_meta_cache_mutex);
+              if (m_info.meta_get_count() > 0) {
+                  g_meta_cache[id_str] = m_info;
+              } else if (g_meta_cache.find(id_str) != g_meta_cache.end()) {
+                  m_info = g_meta_cache[id_str];
+              }
+          }
+
           if (p_reason == input_open_info_write) throw exception_tagging_unsupported();
+          if (p_reason == input_open_info_read) return;
 
                 // --- 2 & 3. Resolve direct URL ---
         std::string direct_url = resolve_yandex_track_url(id_str, wtoken_wide);
+        if (direct_url.empty()) throw exception_io_not_found();
 
-        // --- 4. Open the inner decoder for the real HTTP(S) URL ---
-        if (p_reason == input_open_info_read) {
-            // We already have metadata from the API вЂ“ no need to open a decoder
-        } else {
-            input_entry::g_open_for_decoding(m_decoder, nullptr, direct_url.c_str(), p_abort);
+        try {
+            m_decoder = input_entry::g_open_for_decoding(nullptr, direct_url.c_str(), p_abort);
+        } catch (...) {
+            throw exception_io_not_found();
         }
     }
 
     void get_info(file_info & p_info, abort_callback & p_abort) {
-        if (m_decoder.is_valid()) {
-            m_decoder->get_info(0, p_info, p_abort);
-            for (t_size i = 0; i < m_info.meta_get_count(); ++i) {
-                const char* name = m_info.meta_enum_name(i);
-                p_info.meta_remove_field(name);
-                for (t_size j = 0; j < m_info.meta_enum_value_count(i); ++j) {
-                    p_info.meta_add(name, m_info.meta_enum_value(i, j));
-                }
-            }
-            if (m_info.get_length() > 0) {
-                p_info.set_length(m_info.get_length());
-            }
-        } else {
-            p_info = m_info;
-        }
+        p_info = m_info;
     }
 
     t_filestats2 get_stats2(uint32_t f, abort_callback & a) {
