@@ -392,8 +392,8 @@ class yandex_album_art_extractor_instance : public album_art_extractor_instance 
 public:
     yandex_album_art_extractor_instance(const char * p_path) {
         std::string path_str = p_path;
-        m_id = path_str.substr(strlen(yandex://track/));
-        auto dot = m_id.find(.flac);
+        m_id = path_str.substr(strlen("yandex://track/"));
+        auto dot = m_id.find(".flac");
         if (dot != std::string::npos) m_id = m_id.substr(0, dot);
         m_token = pfc::stringcvt::string_wide_from_utf8(cfg_yandex_token.get_ptr()).get_ptr();
     }
@@ -401,19 +401,19 @@ public:
     album_art_data_ptr query(const GUID & p_what, abort_callback & p_abort) {
         if (p_what != album_art_ids::cover_front) throw exception_album_art_not_found();
         
-        std::wstring meta_path = pfc::stringcvt::string_wide_from_utf8((/tracks/ + m_id).c_str()).get_ptr();
-        std::string json_str = YandexAPI::HttpRequest(Lapi.music.yandex.net, meta_path.c_str(), m_token);
+        std::wstring meta_path = pfc::stringcvt::string_wide_from_utf8(("/tracks/" + m_id).c_str()).get_ptr();
+        std::string json_str = YandexAPI::HttpRequest(L"api.music.yandex.net", meta_path.c_str(), m_token);
         if (json_str.empty()) throw exception_album_art_not_found();
         
         try {
             auto j = nlohmann::json::parse(json_str);
-            if (j.contains(result) && j[result].is_array() && j[result].size() > 0) {
-                auto& res = j[result][0];
-                if (res.contains(coverUri) && res[coverUri].is_string()) {
-                    std::string coverUri = res[coverUri].get<std::string>();
-                    auto pos = coverUri.find(%%);
+            if (j.contains("result") && j["result"].is_array() && j["result"].size() > 0) {
+                auto& res = j["result"][0];
+                if (res.contains("coverUri") && res["coverUri"].is_string()) {
+                    std::string coverUri = res["coverUri"].get<std::string>();
+                    auto pos = coverUri.find("%%");
                     if (pos != std::string::npos) {
-                        coverUri.replace(pos, 2, 400x400);
+                        coverUri.replace(pos, 2, "400x400");
                     }
                     
                     auto slash_pos = coverUri.find('/');
