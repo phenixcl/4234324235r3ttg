@@ -84,9 +84,7 @@ public:
         size_t dot_pos = id_str.find('.');
         if (dot_pos != std::string::npos) id_str = id_str.substr(0, dot_pos);
 
-        pfc::string8 wtoken_str;
-        cfg_yandex_token.get(wtoken_str);
-        std::string wtoken = wtoken_str.c_str();
+        std::string wtoken = cfg_yandex_token.get_ptr();
         std::wstring wtoken_wide(pfc::stringcvt::string_wide_from_utf8(wtoken.c_str()).get_ptr());
 
         bool want_hq = cfg_yandex_hq.get();
@@ -114,17 +112,20 @@ public:
                         auto j = nlohmann::json::parse(info_resp);
                         if (j.contains("result") && j["result"].contains("downloadInfo")) {
                             auto& di = j["result"]["downloadInfo"];
-                            if (di.contains("urls") && di["urls"].is_array() && di["urls"].size() > 0) {
-                                direct_url = di["urls"][0].get<std::string>();
-                                std::string replaced_url = direct_url;
-                                size_t pos = 0;
-                                while((pos = replaced_url.find(",", pos)) != std::string::npos) {
-                                    replaced_url.replace(pos, 1, "%2C");
-                                    pos += 3;
+                            std::string codec = di.value("codec", "");
+                            if (codec == "flac" || codec == "flac-mp4") {
+                                if (di.contains("urls") && di["urls"].is_array() && di["urls"].size() > 0) {
+                                    direct_url = di["urls"][0].get<std::string>();
+                                    std::string replaced_url = direct_url;
+                                    size_t pos = 0;
+                                    while((pos = replaced_url.find(",", pos)) != std::string::npos) {
+                                        replaced_url.replace(pos, 1, "%2C");
+                                        pos += 3;
+                                    }
+                                    direct_url = replaced_url;
+                                } else if (di.contains("url") && di["url"].is_string()) {
+                                    direct_url = di["url"].get<std::string>();
                                 }
-                                direct_url = replaced_url;
-                            } else if (di.contains("url") && di["url"].is_string()) {
-                                direct_url = di["url"].get<std::string>();
                             }
                         }
                     } catch (...) {}
