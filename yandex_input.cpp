@@ -1,4 +1,4 @@
-#include "foobar2000/SDK/foobar2000.h"
+﻿#include "foobar2000/SDK/foobar2000.h"
 #include <map>
 #include <mutex>
 
@@ -383,79 +383,6 @@ public:
 
 static input_singletrack_factory_t<yandex_input> g_yandex_input_factory;
 
-// =====================================================
-// Album Art Extractor
-// =====================================================
-
-class yandex_album_art_extractor_instance : public album_art_extractor_instance {
-    std::string m_id;
-    std::wstring m_token;
-public:
-    yandex_album_art_extractor_instance(const char * p_path) {
-        std::string path_str = p_path;
-        if (path_str.find("yandex://track/") == 0)
-            m_id = path_str.substr(15);
-        size_t dot = m_id.find('.');
-        if (dot != std::string::npos) m_id = m_id.substr(0, dot);
-        m_token = pfc::stringcvt::string_wide_from_utf8(cfg_yandex_token.get_ptr()).get_ptr();
-    }
-
-    album_art_data_ptr query(const GUID & p_what, abort_callback & p_abort) {
-        if (p_what != album_art_ids::cover_front) throw exception_album_art_not_found();
-        if (m_id.empty()) throw exception_album_art_not_found();
-
-        std::wstring meta_path = pfc::stringcvt::string_wide_from_utf8(("/tracks/" + m_id).c_str()).get_ptr();
-        std::string json_str = YandexAPI::HttpRequest(L"api.music.yandex.net", meta_path.c_str(), m_token);
-        if (json_str.empty()) throw exception_album_art_not_found();
-
-        try {
-            auto j = nlohmann::json::parse(json_str);
-            if (!j.contains("result") || !j["result"].is_array() || j["result"].empty())
-                throw exception_album_art_not_found();
-
-            auto & res = j["result"][0];
-            if (!res.contains("coverUri") || !res["coverUri"].is_string())
-                throw exception_album_art_not_found();
-
-            std::string coverUri = res["coverUri"].get<std::string>();
-            size_t pp = coverUri.find("%%");
-            if (pp != std::string::npos)
-                coverUri.replace(pp, 2, "400x400");
-
-            // coverUri format: "avatars.yandex.net/get-music-content/..."
-            size_t slash = coverUri.find('/');
-            if (slash == std::string::npos) throw exception_album_art_not_found();
-
-            std::string img_host = coverUri.substr(0, slash);
-            std::string img_path = coverUri.substr(slash);
-            std::wstring whost = pfc::stringcvt::string_wide_from_utf8(img_host.c_str()).get_ptr();
-            std::wstring wpath = pfc::stringcvt::string_wide_from_utf8(img_path.c_str()).get_ptr();
-
-            std::string img_data = YandexAPI::HttpRequest(whost.c_str(), wpath.c_str(), L"");
-            if (img_data.empty()) throw exception_album_art_not_found();
-
-            return album_art_data_impl::g_create(img_data.data(), img_data.size());
-        } catch (const exception_album_art_not_found &) {
-            throw;
-        } catch (...) {
-            throw exception_album_art_not_found();
-        }
-    }
-};
-
-class yandex_album_art_extractor : public album_art_extractor {
-public:
-    bool is_our_path(const char * p_path, const char * p_extension) {
-        return strncmp(p_path, "yandex://track/", 15) == 0;
-    }
-
-    album_art_extractor_instance_ptr open(service_ptr_t<file> p_filehint, const char * p_path, abort_callback & p_abort) {
-        if (!is_our_path(p_path, "")) throw exception_album_art_not_found();
-        return new service_impl_t<yandex_album_art_extractor_instance>(p_path);
-    }
-};
-
-static service_factory_single_t<yandex_album_art_extractor> g_yandex_album_art_extractor_factory;
 
 
 
