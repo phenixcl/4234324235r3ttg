@@ -1,9 +1,4 @@
 #include "foobar2000/SDK/foobar2000.h"
-#include <map>
-#include <mutex>
-
-static std::map<std::string, file_info_impl> g_meta_cache;
-static std::mutex g_meta_cache_mutex;
 #include "yandex_api.hpp"
 #include <nlohmann/json.hpp>
 #include <string>
@@ -12,6 +7,11 @@ static std::mutex g_meta_cache_mutex;
 #include <sstream>
 #include <iomanip>
 #include <time.h>
+#include <map>
+#include <mutex>
+
+static std::map<std::string, file_info_impl> g_meta_cache;
+static std::mutex g_meta_cache_mutex;
 
 #pragma comment(lib, "bcrypt.lib")
 
