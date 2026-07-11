@@ -166,8 +166,22 @@ public:
                             if (codec == "flac" || codec == "flac-mp4") {
                                 if (di.contains("urls") && di["urls"].is_array() && di["urls"].size() > 0) {
                                     direct_url = di["urls"][0].get<std::string>();
+                                    std::string replaced_url = direct_url;
+                                    size_t pos = 0;
+                                    while((pos = replaced_url.find(",", pos)) != std::string::npos) {
+                                        replaced_url.replace(pos, 1, "%2C");
+                                        pos += 3;
+                                    }
+                                    direct_url = replaced_url;
                                 } else if (di.contains("url") && di["url"].is_string()) {
                                     direct_url = di["url"].get<std::string>();
+                                    std::string replaced_url = direct_url;
+                                    size_t pos = 0;
+                                    while((pos = replaced_url.find(",", pos)) != std::string::npos) {
+                                        replaced_url.replace(pos, 1, "%2C");
+                                        pos += 3;
+                                    }
+                                    direct_url = replaced_url;
                                 }
                             }
                         }
