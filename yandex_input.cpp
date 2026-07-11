@@ -1,4 +1,4 @@
-﻿#include "foobar2000/SDK/foobar2000.h"
+#include "foobar2000/SDK/foobar2000.h"
 #include "yandex_api.hpp"
 #include <nlohmann/json.hpp>
 #include <string>
@@ -221,8 +221,22 @@ public:
                     if (res.contains("title") && res["title"].is_string())
                         m_info.meta_set("TITLE", res["title"].get<std::string>().c_str());
                     if (res.contains("artists") && res["artists"].is_array() && res["artists"].size() > 0) {
-                        if (res["artists"][0].contains("name") && res["artists"][0]["name"].is_string())
-                            m_info.meta_set("ARTIST", res["artists"][0]["name"].get<std::string>().c_str());
+                        std::string artists_str;
+                        std::string composers_str;
+                        for (auto& art : res["artists"]) {
+                            if (art.contains("name") && art["name"].is_string()) {
+                                std::string name = art["name"].get<std::string>();
+                                if (art.contains("composer") && art["composer"].is_boolean() && art["composer"].get<bool>()) {
+                                    if (!composers_str.empty()) composers_str += ", ";
+                                    composers_str += name;
+                                } else {
+                                    if (!artists_str.empty()) artists_str += ", ";
+                                    artists_str += name;
+                                }
+                            }
+                        }
+                        if (!artists_str.empty()) m_info.meta_set("ARTIST", artists_str.c_str());
+                        if (!composers_str.empty()) m_info.meta_set("COMPOSER", composers_str.c_str());
                     }
                     if (res.contains("albums") && res["albums"].is_array() && res["albums"].size() > 0) {
                         auto& alb = res["albums"][0];
@@ -234,9 +248,27 @@ public:
                             auto& tp = alb["trackPosition"];
                             if (tp.contains("index") && tp["index"].is_number())
                                 m_info.meta_set("TRACKNUMBER", std::to_string(tp["index"].get<int>()).c_str());
+                            if (tp.contains("volume") && tp["volume"].is_number())
+                                m_info.meta_set("DISCNUMBER", std::to_string(tp["volume"].get<int>()).c_str());
                         }
+                        if (alb.contains("trackCount") && alb["trackCount"].is_number())
+                            m_info.meta_set("TOTALTRACKS", std::to_string(alb["trackCount"].get<int>()).c_str());
                         if (alb.contains("genre") && alb["genre"].is_string())
                             m_info.meta_set("GENRE", alb["genre"].get<std::string>().c_str());
+                        if (alb.contains("labels") && alb["labels"].is_array() && alb["labels"].size() > 0) {
+                            if (alb["labels"][0].contains("name") && alb["labels"][0]["name"].is_string())
+                                m_info.meta_set("LABEL", alb["labels"][0]["name"].get<std::string>().c_str());
+                        }
+                        if (alb.contains("artists") && alb["artists"].is_array() && alb["artists"].size() > 0) {
+                            std::string alb_artists_str;
+                            for (auto& aart : alb["artists"]) {
+                                if (aart.contains("name") && aart["name"].is_string()) {
+                                    if (!alb_artists_str.empty()) alb_artists_str += ", ";
+                                    alb_artists_str += aart["name"].get<std::string>();
+                                }
+                            }
+                            if (!alb_artists_str.empty()) m_info.meta_set("ALBUM ARTIST", alb_artists_str.c_str());
+                        }
                     }
                     if (res.contains("durationMs") && res["durationMs"].is_number())
                         m_info.set_length(res["durationMs"].get<int>() / 1000.0);
@@ -258,7 +290,21 @@ public:
     }
 
     void get_info(file_info & p_info, abort_callback & p_abort) {
-        p_info = m_info;
+        if (m_decoder.is_valid()) {
+            m_decoder->get_info(p_info, p_abort);
+            for (t_size i = 0; i < m_info.meta_get_count(); ++i) {
+                const char* name = m_info.meta_enum_name(i);
+                p_info.meta_remove_field(name);
+                for (t_size j = 0; j < m_info.meta_enum_value_count(i); ++j) {
+                    p_info.meta_add(name, m_info.meta_enum_value(i, j));
+                }
+            }
+            if (m_info.get_length() > 0) {
+                p_info.set_length(m_info.get_length());
+            }
+        } else {
+            p_info = m_info;
+        }
     }
 
     t_filestats2 get_stats2(uint32_t f, abort_callback & p_abort) {
