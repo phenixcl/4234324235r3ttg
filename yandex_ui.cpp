@@ -260,28 +260,6 @@ public:
               const SearchResult& res = m_results[pnmia->iItem];
               std::string final_url = res.url;
               
-              if (res.is_track) {
-                  std::string wtoken = cfg_yandex_token.get_ptr();
-                  std::wstring wtoken_wide = pfc::stringcvt::string_wide_from_utf8(wtoken.c_str()).get_ptr();
-                  std::wstring wpath = pfc::stringcvt::string_wide_from_utf8(("/tracks/" + res.id + "/download-info").c_str()).get_ptr();
-                  std::string info_resp = YandexAPI::HttpRequest(L"api.music.yandex.net", wpath, wtoken_wide);
-                  std::string final_codec = "mp3";
-                  bool want_hq = cfg_yandex_hq.get();
-                  if (!info_resp.empty()) {
-                      try {
-                          auto j = nlohmann::json::parse(info_resp);
-                          for (auto& stream : j["result"]) {
-                              std::string codec = stream["codec"].get<std::string>();
-                              if (want_hq && codec == "flac") {
-                                  final_codec = "flac";
-                                  break;
-                              }
-                          }
-                      } catch (...) {}
-                  }
-                  final_url += "." + final_codec;
-              }
-
               const char* p_url = final_url.c_str();
               pfc::list_single_ref_t<const char*> url_list(p_url);
               static_api_ptr_t<playlist_manager> pm;
