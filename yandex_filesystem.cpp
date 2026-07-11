@@ -41,7 +41,7 @@ public:
         throw exception_io_not_found();
     }
 
-    bool supports_content_types() override { return true; }
+    bool supports_content_types() override { return false; }
 
     void open(service_ptr_t<file> & p_out, const char * p_path, t_open_mode p_mode, abort_callback & p_abort) override {
         if (p_mode != open_mode_read) throw exception_io_denied();
