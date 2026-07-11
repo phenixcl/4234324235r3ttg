@@ -162,10 +162,13 @@ public:
                         auto j = nlohmann::json::parse(info_resp);
                         if (j.contains("result") && j["result"].contains("downloadInfo")) {
                             auto& di = j["result"]["downloadInfo"];
-                            if (di.contains("urls") && di["urls"].is_array() && di["urls"].size() > 0) {
-                                direct_url = di["urls"][0].get<std::string>();
-                            } else if (di.contains("url") && di["url"].is_string()) {
-                                direct_url = di["url"].get<std::string>();
+                            std::string codec = di.value("codec", "");
+                            if (codec == "flac" || codec == "flac-mp4") {
+                                if (di.contains("urls") && di["urls"].is_array() && di["urls"].size() > 0) {
+                                    direct_url = di["urls"][0].get<std::string>();
+                                } else if (di.contains("url") && di["url"].is_string()) {
+                                    direct_url = di["url"].get<std::string>();
+                                }
                             }
                         }
                     } catch (...) {}
