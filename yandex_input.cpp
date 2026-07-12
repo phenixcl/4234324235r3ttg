@@ -37,7 +37,7 @@ static std::string url_encode(const std::string &value) {
     return escaped.str();
 }
 
-// HMAC-SHA256 в†’ Base64 (no padding), using Windows CNG
+// HMAC-SHA256 РІвЂ вЂ™ Base64 (no padding), using Windows CNG
 std::string ym_hmac_sha256_base64(const std::string& key, const std::string& data) {
     BCRYPT_ALG_HANDLE hAlg = NULL;
     if (!BCRYPT_SUCCESS(BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_SHA256_ALGORITHM, NULL, BCRYPT_ALG_HANDLE_HMAC_FLAG)))
@@ -166,7 +166,7 @@ std::string resolve_yandex_track_url(const std::string& id_str, const std::wstri
             }
             if (download_url.empty()) throw exception_io_not_found();
 
-            // Resolve XML в†’ direct stream URL
+            // Resolve XML РІвЂ вЂ™ direct stream URL
             if (download_url.find("https://") != 0) throw exception_io_not_found();
             size_t host_end = download_url.find("/", 8);
             if (host_end == std::string::npos) throw exception_io_not_found();
@@ -259,7 +259,7 @@ public:
 
         // --- 4. Open the inner decoder for the real HTTP(S) URL ---
         if (p_reason == input_open_info_read) {
-            // We already have metadata from the API – no need to open a decoder
+            // We already have metadata from the API вЂ“ no need to open a decoder
         } else {
             input_entry::g_open_for_decoding(m_decoder, nullptr, direct_url.c_str(), p_abort);
         }
@@ -267,7 +267,7 @@ public:
     void get_info(file_info & p_info, abort_callback & p_abort) {
         if (m_decoder.is_valid()) {
             // Get the decoder's audio info
-            m_decoder->get_info(p_info, p_abort);
+            m_decoder->get_info(0, p_info, p_abort);
             // Restore our tags, as the decoder's info won't have them
             for (t_size i = 0; i < m_info.meta_get_count(); ++i) {
                 p_info.meta_set(m_info.meta_enum_name(i), m_info.meta_enum_value(i, 0));
