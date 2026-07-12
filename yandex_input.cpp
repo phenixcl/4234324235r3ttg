@@ -276,19 +276,14 @@ public:
 
         if (p_reason == input_open_info_write) throw exception_tagging_unsupported();
 
-        if (p_reason == input_open_info_read) {
-            // Foobar2000 is only reading info. Don't open the decoder, save network requests!
-            return;
-        }
-
         // --- 2 & 3. Resolve direct URL ---
         std::string direct_url = resolve_yandex_track_url(id_str, wtoken_wide);
-        if (direct_url.empty()) throw exception_io_not_found();
 
-        try {
+        // --- 4. Open the inner decoder for the real HTTP(S) URL ---
+        if (p_reason == input_open_info_read) {
+            // We already have metadata from the API – no need to open a decoder
+        } else {
             input_entry::g_open_for_decoding(m_decoder, nullptr, direct_url.c_str(), p_abort);
-        } catch (...) {
-            throw exception_io_not_found();
         }
     }
 
