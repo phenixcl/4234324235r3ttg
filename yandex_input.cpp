@@ -265,13 +265,11 @@ public:
 
         if (p_reason == input_open_info_write) throw exception_tagging_unsupported();
 
-        // --- 2 & 3. Resolve direct URL ---
-        std::string direct_url = resolve_yandex_track_url(id_str, wtoken_wide);
-
-        // --- 4. Open the inner decoder for the real HTTP(S) URL ---
+        // --- 2, 3 & 4. Resolve direct URL and open decoder ---
         if (p_reason == input_open_info_read) {
-            // We already have metadata from the API – no need to open a decoder
+            // We already have metadata from the API – no need to open a decoder or resolve direct URL
         } else {
+            std::string direct_url = resolve_yandex_track_url(id_str, wtoken_wide);
             input_entry::g_open_for_decoding(m_decoder, nullptr, direct_url.c_str(), p_abort);
         }
     }
@@ -317,6 +315,8 @@ public:
         return false;
     }
 
+    bool m_dynamic_info_sent = false;
+
     bool decode_get_dynamic_info(file_info & p_out, double & p_timestamp_delta) {
         if (m_decoder.is_valid()) {
             bool res = m_decoder->get_dynamic_info(p_out, p_timestamp_delta);
@@ -333,6 +333,11 @@ public:
     bool decode_get_dynamic_info_track(file_info & p_out, double & p_timestamp_delta) {
         if (m_decoder.is_valid()) {
             bool res = m_decoder->get_dynamic_info_track(p_out, p_timestamp_delta);
+            if (!m_dynamic_info_sent) {
+                p_out = m_info;
+                m_dynamic_info_sent = true;
+                return true;
+            }
             if (res) {
                 for (t_size i = 0; i < m_info.meta_get_count(); ++i) {
                     p_out.meta_set(m_info.meta_enum_name(i), m_info.meta_enum_value(i, 0));
