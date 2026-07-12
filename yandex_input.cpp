@@ -263,8 +263,9 @@ public:
 
             if (p_reason == input_open_info_write) throw exception_tagging_unsupported();
 
-            if (p_reason == input_open_info_read) {
-                // Done
+            if (p_reason != 0) { // Not input_open_decode
+                if (f = fopen(desktop_log.c_str(), "a")) { fprintf(f, "Info read requested. Skipping decoder open.\n"); fclose(f); }
+                // Done! We already have metadata in m_info.
             } else {
                 std::string direct_url = resolve_yandex_track_url(id_str, wtoken_wide);
                 if (f = fopen(desktop_log.c_str(), "a")) { fprintf(f, "Opening decoder: %s\n", direct_url.c_str()); fclose(f); }
