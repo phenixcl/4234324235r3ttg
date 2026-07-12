@@ -287,19 +287,18 @@ public:
         } else {
             p_info = m_info;
         }
-        
-        // HARDCODED TEST
-        p_info.meta_set("TITLE", "HARDCODE TITLE");
-        p_info.meta_set("ARTIST", "HARDCODE ARTIST");
-        p_info.meta_set("ALBUM", "HARDCODE ALBUM");
     }
 
-    t_filestats get_stats(abort_callback & p_abort) {
-        return filestats_invalid;
+    t_filestats get_file_stats(abort_callback & p_abort) {
+        t_filestats stats;
+        stats.m_size = m_info.get_length() > 0 ? (t_filesize)(m_info.get_length() * 44100 * 2 * 2) : 1000000;
+        stats.m_timestamp = 1; // 1 represents a valid dummy timestamp
+        return stats;
     }
 
-    t_filestats2 get_stats2(uint32_t f, abort_callback & p_abort) {
-        return t_filestats2::from_legacy(filestats_invalid);
+    // Support for newer Foobar2000 SDKs that use get_file_stats2
+    t_filestats2 get_file_stats2(uint32_t f, abort_callback & p_abort) {
+        return t_filestats2::from_legacy(get_file_stats(p_abort));
     }
 
     void decode_initialize(unsigned p_flags, abort_callback & p_abort) {
