@@ -202,6 +202,8 @@ std::string resolve_yandex_track_url(const std::string& id_str, const std::wstri
 class yandex_input : public input_stubs {
     service_ptr_t<input_decoder> m_decoder;
     file_info_impl m_info;
+
+public:
     void open(service_ptr_t<file> p_filehint, const char * p_path, t_input_open_reason p_reason, abort_callback & p_abort) {
         std::string desktop_log = std::string(getenv("USERPROFILE")) + "\\Desktop\\yandex_trace.log";
         FILE* f = fopen(desktop_log.c_str(), "a");
