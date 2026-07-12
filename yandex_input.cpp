@@ -214,80 +214,43 @@ public:
         std::string wtoken = cfg_yandex_token.get_ptr();
         std::wstring wtoken_wide(pfc::stringcvt::string_wide_from_utf8(wtoken.c_str()).get_ptr());
 
-        bool have_cached_meta = false;
-        {
-            std::lock_guard<std::mutex> lock(g_meta_cache_mutex);
-            if (g_meta_cache.find(id_str) != g_meta_cache.end()) {
-                m_info = g_meta_cache[id_str];
-                have_cached_meta = true;
-            }
-        }
-
         // --- 1. Fetch track metadata ---
-        if (!have_cached_meta) {
-            std::wstring meta_path(pfc::stringcvt::string_wide_from_utf8(("/tracks/" + id_str).c_str()).get_ptr());
-            std::string track_info_json = YandexAPI::HttpRequest(L"api.music.yandex.net", meta_path.c_str(), wtoken_wide);
-            console::printf("YandexMusic: track_info_json length=%zu", track_info_json.length());
-            if (track_info_json.length() > 0 && track_info_json.length() < 1000) {
-                console::printf("YandexMusic: json_preview=%s", track_info_json.c_str());
-            }
-            if (!track_info_json.empty()) {
-                try {
-                    auto track_j = nlohmann::json::parse(track_info_json);
-                    if (track_j.contains("result") && track_j["result"].is_array() && track_j["result"].size() > 0) {
-                        console::printf("YandexMusic: Found result array");
-                        auto& res = track_j["result"][0];
-                        if (res.contains("title") && res["title"].is_string()) {
-                            m_info.meta_set("TITLE", res["title"].get<std::string>().c_str());
-                            console::printf("YandexMusic: Set TITLE=%s", res["title"].get<std::string>().c_str());
-                        } else {
-                            console::printf("YandexMusic: TITLE not found or not string");
-                        }
-                        if (res.contains("artists") && res["artists"].is_array() && res["artists"].size() > 0) {
-                            if (res["artists"][0].contains("name") && res["artists"][0]["name"].is_string()) {
-                                m_info.meta_set("ARTIST", res["artists"][0]["name"].get<std::string>().c_str());
-                                console::printf("YandexMusic: Set ARTIST=%s", res["artists"][0]["name"].get<std::string>().c_str());
-                            }
-                        }
-                        if (res.contains("albums") && res["albums"].is_array() && res["albums"].size() > 0) {
-                            auto& alb = res["albums"][0];
-                            if (alb.contains("title") && alb["title"].is_string())
-                                m_info.meta_set("ALBUM", alb["title"].get<std::string>().c_str());
-                            if (alb.contains("year") && alb["year"].is_number())
-                                m_info.meta_set("DATE", std::to_string(alb["year"].get<int>()).c_str());
-                            if (alb.contains("trackPosition") && alb["trackPosition"].is_object()) {
-                                auto& tp = alb["trackPosition"];
-                                if (tp.contains("index") && tp["index"].is_number())
-                                    m_info.meta_set("TRACKNUMBER", std::to_string(tp["index"].get<int>()).c_str());
-                            }
-                            if (alb.contains("genre") && alb["genre"].is_string())
-                                m_info.meta_set("GENRE", alb["genre"].get<std::string>().c_str());
-                        }
-                        if (res.contains("durationMs") && res["durationMs"].is_number()) {
-                            m_info.set_length(res["durationMs"].get<int>() / 1000.0);
-                            console::printf("YandexMusic: Set length");
-                        }
-                    } else {
-                        console::printf("YandexMusic: 'result' key not found or empty array");
+        std::wstring meta_path(pfc::stringcvt::string_wide_from_utf8(("/tracks/" + id_str).c_str()).get_ptr());
+        std::string track_info_json = YandexAPI::HttpRequest(L"api.music.yandex.net", meta_path.c_str(), wtoken_wide);
+        console::printf("YandexMusic: [Debug] Fetching metadata for %s. JSON length: %zu", id_str.c_str(), track_info_json.length());
+        
+        if (!track_info_json.empty()) {
+            try {
+                auto track_j = nlohmann::json::parse(track_info_json);
+                if (track_j.contains("result") && track_j["result"].is_array() && track_j["result"].size() > 0) {
+                    auto& res = track_j["result"][0];
+                    if (res.contains("title") && res["title"].is_string()) {
+                        m_info.meta_set("TITLE", res["title"].get<std::string>().c_str());
                     }
-                } catch (const std::exception& e) {
-                    console::printf("YandexMusic: JSON parse exception: %s", e.what());
-                } catch (...) {
-                    console::printf("YandexMusic: Unknown JSON parse exception");
+                    if (res.contains("artists") && res["artists"].is_array() && res["artists"].size() > 0) {
+                        if (res["artists"][0].contains("name") && res["artists"][0]["name"].is_string()) {
+                            m_info.meta_set("ARTIST", res["artists"][0]["name"].get<std::string>().c_str());
+                        }
+                    }
+                    if (res.contains("albums") && res["albums"].is_array() && res["albums"].size() > 0) {
+                        auto& alb = res["albums"][0];
+                        if (alb.contains("title") && alb["title"].is_string())
+                            m_info.meta_set("ALBUM", alb["title"].get<std::string>().c_str());
+                        if (alb.contains("year") && alb["year"].is_number())
+                            m_info.meta_set("DATE", std::to_string(alb["year"].get<int>()).c_str());
+                    }
+                    if (res.contains("durationMs") && res["durationMs"].is_number()) {
+                        m_info.set_length(res["durationMs"].get<int>() / 1000.0);
+                    }
                 }
-            } else {
-                console::printf("YandexMusic: track_info_json is empty");
-            }
-            m_info.info_set("codec", "FLAC");
-            m_info.info_set("bitrate", "900");
-            m_info.info_set("samplerate", "44100");
-            m_info.info_set("channels", "2");
-
-            {
-                std::lock_guard<std::mutex> lock(g_meta_cache_mutex);
-                g_meta_cache[id_str] = m_info;
-            }
+            } catch (...) {}
         }
+        
+        // Add placeholder audio properties so Foobar2000 does not complain "Track cannot be analyzed"
+        m_info.info_set("codec", "MP3");
+        m_info.info_set_int("samplerate", 44100);
+        m_info.info_set_int("channels", 2);
+        m_info.info_set_int("bitrate", 320);
 
         if (p_reason == input_open_info_write) throw exception_tagging_unsupported();
 
