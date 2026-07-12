@@ -227,22 +227,27 @@ public:
         if (!have_cached_meta) {
             std::wstring meta_path(pfc::stringcvt::string_wide_from_utf8(("/tracks/" + id_str).c_str()).get_ptr());
             std::string track_info_json = YandexAPI::HttpRequest(L"api.music.yandex.net", meta_path.c_str(), wtoken_wide);
+            console::printf("YandexMusic: track_info_json length=%zu", track_info_json.length());
+            if (track_info_json.length() > 0 && track_info_json.length() < 1000) {
+                console::printf("YandexMusic: json_preview=%s", track_info_json.c_str());
+            }
             if (!track_info_json.empty()) {
                 try {
                     auto track_j = nlohmann::json::parse(track_info_json);
                     if (track_j.contains("result") && track_j["result"].is_array() && track_j["result"].size() > 0) {
+                        console::printf("YandexMusic: Found result array");
                         auto& res = track_j["result"][0];
-                        if (res.contains("title") && res["title"].is_string())
+                        if (res.contains("title") && res["title"].is_string()) {
                             m_info.meta_set("TITLE", res["title"].get<std::string>().c_str());
+                            console::printf("YandexMusic: Set TITLE=%s", res["title"].get<std::string>().c_str());
+                        } else {
+                            console::printf("YandexMusic: TITLE not found or not string");
+                        }
                         if (res.contains("artists") && res["artists"].is_array() && res["artists"].size() > 0) {
-                            std::string artists_str;
-                            for (auto& art : res["artists"]) {
-                                if (art.is_object() && art.contains("name") && art["name"].is_string()) {
-                                    if (!artists_str.empty()) artists_str += ", ";
-                                    artists_str += art["name"].get<std::string>();
-                                }
+                            if (res["artists"][0].contains("name") && res["artists"][0]["name"].is_string()) {
+                                m_info.meta_set("ARTIST", res["artists"][0]["name"].get<std::string>().c_str());
+                                console::printf("YandexMusic: Set ARTIST=%s", res["artists"][0]["name"].get<std::string>().c_str());
                             }
-                            if (!artists_str.empty()) m_info.meta_set("ARTIST", artists_str.c_str());
                         }
                         if (res.contains("albums") && res["albums"].is_array() && res["albums"].size() > 0) {
                             auto& alb = res["albums"][0];
@@ -258,10 +263,20 @@ public:
                             if (alb.contains("genre") && alb["genre"].is_string())
                                 m_info.meta_set("GENRE", alb["genre"].get<std::string>().c_str());
                         }
-                        if (res.contains("durationMs") && res["durationMs"].is_number())
+                        if (res.contains("durationMs") && res["durationMs"].is_number()) {
                             m_info.set_length(res["durationMs"].get<int>() / 1000.0);
+                            console::printf("YandexMusic: Set length");
+                        }
+                    } else {
+                        console::printf("YandexMusic: 'result' key not found or empty array");
                     }
-                } catch (...) {}
+                } catch (const std::exception& e) {
+                    console::printf("YandexMusic: JSON parse exception: %s", e.what());
+                } catch (...) {
+                    console::printf("YandexMusic: Unknown JSON parse exception");
+                }
+            } else {
+                console::printf("YandexMusic: track_info_json is empty");
             }
             m_info.info_set("codec", "FLAC");
             m_info.info_set("bitrate", "900");
