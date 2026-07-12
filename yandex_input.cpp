@@ -219,6 +219,16 @@ public:
         std::string track_info_json = YandexAPI::HttpRequest(L"api.music.yandex.net", meta_path.c_str(), wtoken_wide);
         console::printf("YandexMusic: [Debug] Fetching metadata for %s. JSON length: %zu", id_str.c_str(), track_info_json.length());
         
+        {
+            FILE* f = fopen("C:\\yandex_debug.log", "a");
+            if (f) {
+                fprintf(f, "--- NEW TRACK REQUEST: %s ---\n", id_str.c_str());
+                fprintf(f, "URL: api.music.yandex.net/tracks/%s\n", id_str.c_str());
+                fprintf(f, "RESPONSE: %s\n", track_info_json.c_str());
+                fclose(f);
+            }
+        }
+        
         if (!track_info_json.empty()) {
             try {
                 auto track_j = nlohmann::json::parse(track_info_json);
