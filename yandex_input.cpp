@@ -264,9 +264,24 @@ public:
             input_entry::g_open_for_decoding(m_decoder, nullptr, direct_url.c_str(), p_abort);
         }
     }
-
     void get_info(file_info & p_info, abort_callback & p_abort) {
-        p_info = m_info;
+        if (m_decoder.is_valid()) {
+            // Get the decoder's audio info
+            m_decoder->get_info(p_info, p_abort);
+            // Restore our tags, as the decoder's info won't have them
+            for (t_size i = 0; i < m_info.meta_get_count(); ++i) {
+                p_info.meta_set(m_info.meta_enum_name(i), m_info.meta_enum_value(i, 0));
+            }
+            if (m_info.get_length() > 0) {
+                p_info.set_length(m_info.get_length());
+            }
+        } else {
+            p_info = m_info;
+        }
+    }
+
+    t_filestats get_stats(abort_callback & p_abort) {
+        return filestats_invalid;
     }
 
     t_filestats2 get_stats2(uint32_t f, abort_callback & p_abort) {
@@ -292,14 +307,31 @@ public:
     }
 
     bool decode_get_dynamic_info(file_info & p_out, double & p_timestamp_delta) {
-        if (m_decoder.is_valid()) return m_decoder->get_dynamic_info(p_out, p_timestamp_delta);
+        if (m_decoder.is_valid()) {
+            bool res = m_decoder->get_dynamic_info(p_out, p_timestamp_delta);
+            if (res) {
+                for (t_size i = 0; i < m_info.meta_get_count(); ++i) {
+                    p_out.meta_set(m_info.meta_enum_name(i), m_info.meta_enum_value(i, 0));
+                }
+            }
+            return res;
+        }
         return false;
     }
 
     bool decode_get_dynamic_info_track(file_info & p_out, double & p_timestamp_delta) {
-        if (m_decoder.is_valid()) return m_decoder->get_dynamic_info_track(p_out, p_timestamp_delta);
+        if (m_decoder.is_valid()) {
+            bool res = m_decoder->get_dynamic_info_track(p_out, p_timestamp_delta);
+            if (res) {
+                for (t_size i = 0; i < m_info.meta_get_count(); ++i) {
+                    p_out.meta_set(m_info.meta_enum_name(i), m_info.meta_enum_value(i, 0));
+                }
+            }
+            return res;
+        }
         return false;
     }
+
 
     void decode_on_idle(abort_callback & p_abort) {
         if (m_decoder.is_valid()) m_decoder->on_idle(p_abort);
