@@ -287,6 +287,11 @@ public:
         } else {
             p_info = m_info;
         }
+        
+        // HARDCODED TEST
+        p_info.meta_set("TITLE", "HARDCODE TITLE");
+        p_info.meta_set("ARTIST", "HARDCODE ARTIST");
+        p_info.meta_set("ALBUM", "HARDCODE ALBUM");
     }
 
     t_filestats get_stats(abort_callback & p_abort) {
