@@ -275,10 +275,10 @@ public:
             input_entry::g_open_for_decoding(m_decoder, nullptr, direct_url.c_str(), p_abort);
         }
     }
-    void get_info(file_info & p_info, abort_callback & p_abort) {
+    void get_info(t_uint32 p_subsong, file_info & p_info, abort_callback & p_abort) {
         if (m_decoder.is_valid()) {
             // Get the decoder's audio info
-            m_decoder->get_info(0, p_info, p_abort);
+            m_decoder->get_info(p_subsong, p_info, p_abort);
             // Restore our tags, as the decoder's info won't have them
             for (t_size i = 0; i < m_info.meta_get_count(); ++i) {
                 p_info.meta_set(m_info.meta_enum_name(i), m_info.meta_enum_value(i, 0));
