@@ -214,50 +214,81 @@ public:
         std::string wtoken = cfg_yandex_token.get_ptr();
         std::wstring wtoken_wide(pfc::stringcvt::string_wide_from_utf8(wtoken.c_str()).get_ptr());
 
+        bool have_cached_meta = false;
+        {
+            std::lock_guard<std::mutex> lock(g_meta_cache_mutex);
+            if (g_meta_cache.find(id_str) != g_meta_cache.end()) {
+                m_info = g_meta_cache[id_str];
+                have_cached_meta = true;
+            }
+        }
+
         // --- 1. Fetch track metadata ---
-        std::wstring meta_path(pfc::stringcvt::string_wide_from_utf8(("/tracks/" + id_str).c_str()).get_ptr());
-        std::string track_info_json = YandexAPI::HttpRequest(L"api.music.yandex.net", meta_path.c_str(), wtoken_wide);
-        if (!track_info_json.empty()) {
-            try {
-                auto track_j = nlohmann::json::parse(track_info_json);
-                if (track_j.contains("result") && track_j["result"].is_array() && track_j["result"].size() > 0) {
-                    auto& res = track_j["result"][0];
-                    if (res.contains("title") && res["title"].is_string())
-                        m_info.meta_set("TITLE", res["title"].get<std::string>().c_str());
-                    if (res.contains("artists") && res["artists"].is_array() && res["artists"].size() > 0) {
-                        if (res["artists"][0].contains("name") && res["artists"][0]["name"].is_string())
-                            m_info.meta_set("ARTIST", res["artists"][0]["name"].get<std::string>().c_str());
-                    }
-                    if (res.contains("albums") && res["albums"].is_array() && res["albums"].size() > 0) {
-                        auto& alb = res["albums"][0];
-                        if (alb.contains("title") && alb["title"].is_string())
-                            m_info.meta_set("ALBUM", alb["title"].get<std::string>().c_str());
-                        if (alb.contains("year") && alb["year"].is_number())
-                            m_info.meta_set("DATE", std::to_string(alb["year"].get<int>()).c_str());
-                        if (alb.contains("trackPosition")) {
-                            auto& tp = alb["trackPosition"];
-                            if (tp.contains("index") && tp["index"].is_number())
-                                m_info.meta_set("TRACKNUMBER", std::to_string(tp["index"].get<int>()).c_str());
+        if (!have_cached_meta) {
+            std::wstring meta_path(pfc::stringcvt::string_wide_from_utf8(("/tracks/" + id_str).c_str()).get_ptr());
+            std::string track_info_json = YandexAPI::HttpRequest(L"api.music.yandex.net", meta_path.c_str(), wtoken_wide);
+            if (!track_info_json.empty()) {
+                try {
+                    auto track_j = nlohmann::json::parse(track_info_json);
+                    if (track_j.contains("result") && track_j["result"].is_array() && track_j["result"].size() > 0) {
+                        auto& res = track_j["result"][0];
+                        if (res.contains("title") && res["title"].is_string())
+                            m_info.meta_set("TITLE", res["title"].get<std::string>().c_str());
+                        if (res.contains("artists") && res["artists"].is_array() && res["artists"].size() > 0) {
+                            std::string artists_str;
+                            for (auto& art : res["artists"]) {
+                                if (art.is_object() && art.contains("name") && art["name"].is_string()) {
+                                    if (!artists_str.empty()) artists_str += ", ";
+                                    artists_str += art["name"].get<std::string>();
+                                }
+                            }
+                            if (!artists_str.empty()) m_info.meta_set("ARTIST", artists_str.c_str());
                         }
-                        if (alb.contains("genre") && alb["genre"].is_string())
-                            m_info.meta_set("GENRE", alb["genre"].get<std::string>().c_str());
+                        if (res.contains("albums") && res["albums"].is_array() && res["albums"].size() > 0) {
+                            auto& alb = res["albums"][0];
+                            if (alb.contains("title") && alb["title"].is_string())
+                                m_info.meta_set("ALBUM", alb["title"].get<std::string>().c_str());
+                            if (alb.contains("year") && alb["year"].is_number())
+                                m_info.meta_set("DATE", std::to_string(alb["year"].get<int>()).c_str());
+                            if (alb.contains("trackPosition") && alb["trackPosition"].is_object()) {
+                                auto& tp = alb["trackPosition"];
+                                if (tp.contains("index") && tp["index"].is_number())
+                                    m_info.meta_set("TRACKNUMBER", std::to_string(tp["index"].get<int>()).c_str());
+                            }
+                            if (alb.contains("genre") && alb["genre"].is_string())
+                                m_info.meta_set("GENRE", alb["genre"].get<std::string>().c_str());
+                        }
+                        if (res.contains("durationMs") && res["durationMs"].is_number())
+                            m_info.set_length(res["durationMs"].get<int>() / 1000.0);
                     }
-                    if (res.contains("durationMs") && res["durationMs"].is_number())
-                        m_info.set_length(res["durationMs"].get<int>() / 1000.0);
-                }
-            } catch (...) {}
+                } catch (...) {}
+            }
+            m_info.info_set("codec", "FLAC");
+            m_info.info_set("bitrate", "900");
+            m_info.info_set("samplerate", "44100");
+            m_info.info_set("channels", "2");
+
+            {
+                std::lock_guard<std::mutex> lock(g_meta_cache_mutex);
+                g_meta_cache[id_str] = m_info;
+            }
         }
 
         if (p_reason == input_open_info_write) throw exception_tagging_unsupported();
 
-                // --- 2 & 3. Resolve direct URL ---
-        std::string direct_url = resolve_yandex_track_url(id_str, wtoken_wide);
-
-        // --- 4. Open the inner decoder for the real HTTP(S) URL ---
         if (p_reason == input_open_info_read) {
-            // We already have metadata from the API вЂ“ no need to open a decoder
-        } else {
+            // Foobar2000 is only reading info. Don't open the decoder, save network requests!
+            return;
+        }
+
+        // --- 2 & 3. Resolve direct URL ---
+        std::string direct_url = resolve_yandex_track_url(id_str, wtoken_wide);
+        if (direct_url.empty()) throw exception_io_not_found();
+
+        try {
             input_entry::g_open_for_decoding(m_decoder, nullptr, direct_url.c_str(), p_abort);
+        } catch (...) {
+            throw exception_io_not_found();
         }
     }
 
