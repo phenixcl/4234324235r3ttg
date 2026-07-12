@@ -220,7 +220,8 @@ public:
         console::printf("YandexMusic: [Debug] Fetching metadata for %s. JSON length: %zu", id_str.c_str(), track_info_json.length());
         
         {
-            FILE* f = fopen("C:\\yandex_debug.log", "a");
+            std::string desktop_log = std::string(getenv("USERPROFILE")) + "\\Desktop\\yandex_debug.log";
+            FILE* f = fopen(desktop_log.c_str(), "a");
             if (f) {
                 fprintf(f, "--- NEW TRACK REQUEST: %s ---\n", id_str.c_str());
                 fprintf(f, "URL: api.music.yandex.net/tracks/%s\n", id_str.c_str());
