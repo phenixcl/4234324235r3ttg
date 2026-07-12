@@ -202,82 +202,89 @@ std::string resolve_yandex_track_url(const std::string& id_str, const std::wstri
 class yandex_input : public input_stubs {
     service_ptr_t<input_decoder> m_decoder;
     file_info_impl m_info;
-
-public:
     void open(service_ptr_t<file> p_filehint, const char * p_path, t_input_open_reason p_reason, abort_callback & p_abort) {
-        std::string path_str = p_path;
-        if (path_str.find("yandex://track/") != 0) throw exception_io_not_found();
-        std::string id_str = path_str.substr(15);
-        size_t dot_pos = id_str.find('.');
-        if (dot_pos != std::string::npos) id_str = id_str.substr(0, dot_pos);
+        std::string desktop_log = std::string(getenv("USERPROFILE")) + "\\Desktop\\yandex_trace.log";
+        FILE* f = fopen(desktop_log.c_str(), "a");
+        if (f) { fprintf(f, "open() called: path=%s reason=%d\n", p_path, p_reason); fclose(f); }
 
-        std::string wtoken = cfg_yandex_token.get_ptr();
-        std::wstring wtoken_wide(pfc::stringcvt::string_wide_from_utf8(wtoken.c_str()).get_ptr());
+        try {
+            if (!g_is_our_path(p_path, "")) throw exception_io_data();
 
-        // --- 1. Fetch track metadata ---
-        std::wstring meta_path(pfc::stringcvt::string_wide_from_utf8(("/tracks/" + id_str).c_str()).get_ptr());
-        std::string track_info_json = YandexAPI::HttpRequest(L"api.music.yandex.net", meta_path.c_str(), wtoken_wide);
-        console::printf("YandexMusic: [Debug] Fetching metadata for %s. JSON length: %zu", id_str.c_str(), track_info_json.length());
-        
-        {
-            std::string desktop_log = std::string(getenv("USERPROFILE")) + "\\Desktop\\yandex_debug.log";
-            FILE* f = fopen(desktop_log.c_str(), "a");
-            if (f) {
-                fprintf(f, "--- NEW TRACK REQUEST: %s ---\n", id_str.c_str());
-                fprintf(f, "URL: api.music.yandex.net/tracks/%s\n", id_str.c_str());
-                fprintf(f, "RESPONSE: %s\n", track_info_json.c_str());
-                fclose(f);
-            }
-        }
-        
-        if (!track_info_json.empty()) {
-            try {
-                auto track_j = nlohmann::json::parse(track_info_json);
-                if (track_j.contains("result") && track_j["result"].is_array() && track_j["result"].size() > 0) {
-                    auto& res = track_j["result"][0];
-                    if (res.contains("title") && res["title"].is_string()) {
-                        m_info.meta_set("TITLE", res["title"].get<std::string>().c_str());
-                    }
-                    if (res.contains("artists") && res["artists"].is_array() && res["artists"].size() > 0) {
-                        if (res["artists"][0].contains("name") && res["artists"][0]["name"].is_string()) {
-                            m_info.meta_set("ARTIST", res["artists"][0]["name"].get<std::string>().c_str());
+            std::string path_str = p_path;
+            if (path_str.find("yandex://track/") != 0) throw exception_io_data();
+            
+            std::string id_str = path_str.substr(15);
+            std::string wtoken = cfg_yandex_token.get_ptr();
+            if (wtoken.empty()) throw exception_io_data();
+
+            std::wstring wtoken_wide(pfc::stringcvt::string_wide_from_utf8(wtoken.c_str()).get_ptr());
+
+            // Add placeholder audio properties
+            m_info.info_set("codec", "MP3");
+            m_info.info_set_int("samplerate", 44100);
+            m_info.info_set_int("channels", 2);
+            m_info.info_set_int("bitrate", 320);
+
+            std::wstring meta_path(pfc::stringcvt::string_wide_from_utf8(("/tracks/" + id_str).c_str()).get_ptr());
+            std::string track_info_json = YandexAPI::HttpRequest(L"api.music.yandex.net", meta_path.c_str(), wtoken_wide);
+
+            if (!track_info_json.empty()) {
+                try {
+                    auto track_j = nlohmann::json::parse(track_info_json);
+                    if (track_j.contains("result") && track_j["result"].is_array() && track_j["result"].size() > 0) {
+                        auto& res = track_j["result"][0];
+                        if (res.contains("title") && res["title"].is_string()) {
+                            m_info.meta_set("TITLE", res["title"].get<std::string>().c_str());
+                        }
+                        if (res.contains("artists") && res["artists"].is_array() && res["artists"].size() > 0) {
+                            if (res["artists"][0].contains("name") && res["artists"][0]["name"].is_string()) {
+                                m_info.meta_set("ARTIST", res["artists"][0]["name"].get<std::string>().c_str());
+                            }
+                        }
+                        if (res.contains("albums") && res["albums"].is_array() && res["albums"].size() > 0) {
+                            auto& alb = res["albums"][0];
+                            if (alb.contains("title") && alb["title"].is_string())
+                                m_info.meta_set("ALBUM", alb["title"].get<std::string>().c_str());
+                            if (alb.contains("year") && alb["year"].is_number())
+                                m_info.meta_set("DATE", std::to_string(alb["year"].get<int>()).c_str());
+                        }
+                        if (res.contains("durationMs") && res["durationMs"].is_number()) {
+                            m_info.set_length(res["durationMs"].get<int>() / 1000.0);
                         }
                     }
-                    if (res.contains("albums") && res["albums"].is_array() && res["albums"].size() > 0) {
-                        auto& alb = res["albums"][0];
-                        if (alb.contains("title") && alb["title"].is_string())
-                            m_info.meta_set("ALBUM", alb["title"].get<std::string>().c_str());
-                        if (alb.contains("year") && alb["year"].is_number())
-                            m_info.meta_set("DATE", std::to_string(alb["year"].get<int>()).c_str());
-                    }
-                    if (res.contains("durationMs") && res["durationMs"].is_number()) {
-                        m_info.set_length(res["durationMs"].get<int>() / 1000.0);
-                    }
+                } catch (...) {
+                    if (f = fopen(desktop_log.c_str(), "a")) { fprintf(f, "JSON Parse Error\n"); fclose(f); }
                 }
-            } catch (...) {}
-        }
-        
-        // Add placeholder audio properties so Foobar2000 does not complain "Track cannot be analyzed"
-        m_info.info_set("codec", "MP3");
-        m_info.info_set_int("samplerate", 44100);
-        m_info.info_set_int("channels", 2);
-        m_info.info_set_int("bitrate", 320);
+            } else {
+                if (f = fopen(desktop_log.c_str(), "a")) { fprintf(f, "JSON is empty\n"); fclose(f); }
+            }
 
-        if (p_reason == input_open_info_write) throw exception_tagging_unsupported();
+            if (p_reason == input_open_info_write) throw exception_tagging_unsupported();
 
-        // --- 2, 3 & 4. Resolve direct URL and open decoder ---
-        if (p_reason == input_open_info_read) {
-            // We already have metadata from the API – no need to open a decoder or resolve direct URL
-        } else {
-            std::string direct_url = resolve_yandex_track_url(id_str, wtoken_wide);
-            input_entry::g_open_for_decoding(m_decoder, nullptr, direct_url.c_str(), p_abort);
+            if (p_reason == input_open_info_read) {
+                // Done
+            } else {
+                std::string direct_url = resolve_yandex_track_url(id_str, wtoken_wide);
+                if (f = fopen(desktop_log.c_str(), "a")) { fprintf(f, "Opening decoder: %s\n", direct_url.c_str()); fclose(f); }
+                input_entry::g_open_for_decoding(m_decoder, nullptr, direct_url.c_str(), p_abort);
+            }
+            if (f = fopen(desktop_log.c_str(), "a")) { fprintf(f, "open() success\n"); fclose(f); }
+        } catch (std::exception& e) {
+            if (f = fopen(desktop_log.c_str(), "a")) { fprintf(f, "open() EXCEPTION: %s\n", e.what()); fclose(f); }
+            throw;
+        } catch (...) {
+            if (f = fopen(desktop_log.c_str(), "a")) { fprintf(f, "open() UNKNOWN EXCEPTION\n"); fclose(f); }
+            throw;
         }
     }
+
     void get_info(file_info & p_info, abort_callback & p_abort) {
+        std::string desktop_log = std::string(getenv("USERPROFILE")) + "\\Desktop\\yandex_trace.log";
+        FILE* f = fopen(desktop_log.c_str(), "a");
+        if (f) { fprintf(f, "get_info() called. m_decoder valid=%d\n", m_decoder.is_valid()); fclose(f); }
+
         if (m_decoder.is_valid()) {
-            // Get the decoder's audio info
             m_decoder->get_info(0, p_info, p_abort);
-            // Restore our tags, as the decoder's info won't have them
             for (t_size i = 0; i < m_info.meta_get_count(); ++i) {
                 p_info.meta_set(m_info.meta_enum_name(i), m_info.meta_enum_value(i, 0));
             }
@@ -290,13 +297,21 @@ public:
     }
 
     t_filestats get_stats(abort_callback & p_abort) {
+        std::string desktop_log = std::string(getenv("USERPROFILE")) + "\\Desktop\\yandex_trace.log";
+        FILE* f = fopen(desktop_log.c_str(), "a");
+        if (f) { fprintf(f, "get_stats() called\n"); fclose(f); }
+
         t_filestats stats;
         stats.m_size = m_info.get_length() > 0 ? (t_filesize)(m_info.get_length() * 44100 * 2 * 2) : 1000000;
-        stats.m_timestamp = 1; // 1 represents a valid dummy timestamp
+        stats.m_timestamp = 1;
         return stats;
     }
 
-    t_filestats2 get_stats2(uint32_t f, abort_callback & p_abort) {
+    t_filestats2 get_stats2(uint32_t f_flags, abort_callback & p_abort) {
+        std::string desktop_log = std::string(getenv("USERPROFILE")) + "\\Desktop\\yandex_trace.log";
+        FILE* f = fopen(desktop_log.c_str(), "a");
+        if (f) { fprintf(f, "get_stats2() called\n"); fclose(f); }
+
         return t_filestats2::from_legacy(get_stats(p_abort));
     }
 
